@@ -37,7 +37,6 @@ function App() {
   const [partnerId, setPartnerId] = useState(null)
   const [partnerDeviceId, setPartnerDeviceId] = useState(null)
   const [messages, setMessages] = useState([])
-  const [input, setInput] = useState('')
   const [localStream, setLocalStream] = useState(null)
   const [mediaReady, setMediaReady] = useState(false)
   const [mediaError, setMediaError] = useState(null)
@@ -356,14 +355,13 @@ function App() {
     }
   }
 
-  const sendMessage = () => {
-    if (!input.trim() || !partnerId) return
+  const sendMessage = (text) => {
+    const trimmed = text?.trim()
+    if (!trimmed || !partnerId) return
 
-    const text = input.trim()
-    console.log('[Chat] sending:', text)
-    socketRef.current?.emit('chat-message', text)
-    setMessages((prev) => [...prev, { text, self: true }])
-    setInput('')
+    console.log('[Chat] sending:', trimmed)
+    socketRef.current?.emit('chat-message', trimmed)
+    setMessages((prev) => [...prev, { text: trimmed, self: true }])
   }
 
   return (
@@ -407,8 +405,6 @@ function App() {
                 onReport={handleReport}
                 onNext={handleNext}
                 messages={messages}
-                input={input}
-                setInput={setInput}
                 onSendMessage={sendMessage}
               />
             )}

@@ -339,6 +339,8 @@ body {
   border-radius: var(--radius);
   box-shadow: var(--shadow);
   overflow: hidden;
+  position: relative;
+  z-index: 3;
 }
 
 .chat-messages {

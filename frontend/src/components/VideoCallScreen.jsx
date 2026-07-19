@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import {
   Mic,
   MicOff,
@@ -21,11 +21,10 @@ function VideoCallScreen({
   onReport,
   onNext,
   messages,
-  input,
-  setInput,
   onSendMessage,
 }) {
   const messagesEndRef = useRef(null)
+  const [message, setMessage] = useState('')
 
   useEffect(() => {
     if (localVideoRef.current && localStream) {
@@ -42,9 +41,25 @@ function VideoCallScreen({
 
   const statusLabel = connected ? 'Connecté' : waiting ? status : ''
 
+  const canSend = connected && partnerId
+
+  const submitMessage = () => {
+    const text = message.trim()
+    if (!text || !canSend) return
+    onSendMessage(text)
+    setMessage('')
+  }
+
   const handleSubmit = (e) => {
     e.preventDefault()
-    onSendMessage()
+    submitMessage()
+  }
+
+  const handleKeyDown = (e) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault()
+      submitMessage()
+    }
   }
 
   return (
@@ -125,12 +140,14 @@ function VideoCallScreen({
         <form className="chat-form" onSubmit={handleSubmit}>
           <input
             type="text"
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            placeholder="Écrire un message..."
-            disabled={!partnerId}
+            value={message}
+            onChange={(e) => setMessage(e.target.value)}
+            onKeyDown={handleKeyDown}
+            placeholder={canSend ? 'Écrire un message...' : 'En attente...'}
+            disabled={!canSend}
+            enterKeyHint="send"
           />
-          <button type="submit" disabled={!partnerId || !input.trim()}>
+          <button type="submit" disabled={!canSend || !message.trim()}>
             <Send size={20} />
           </button>
         </form>

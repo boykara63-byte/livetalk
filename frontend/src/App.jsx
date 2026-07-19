@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { io } from 'socket.io-client'
 import { Video } from 'lucide-react'
 import AgeGateScreen from './components/AgeGateScreen'
@@ -8,6 +8,30 @@ import './App.css'
 
 const DEVICE_ID_KEY = 'livetalk-device-id'
 const AGE_VERIFIED_KEY = 'livetalk-age-verified'
+
+const ICE_SERVERS = [
+  { urls: 'stun:stun.relay.metered.ca:80' },
+  {
+    urls: 'turn:standard.relay.metered.ca:80',
+    username: 'openrelayproject',
+    credential: 'openrelayproject',
+  },
+  {
+    urls: 'turn:standard.relay.metered.ca:80?transport=tcp',
+    username: 'openrelayproject',
+    credential: 'openrelayproject',
+  },
+  {
+    urls: 'turn:standard.relay.metered.ca:443',
+    username: 'openrelayproject',
+    credential: 'openrelayproject',
+  },
+  {
+    urls: 'turn:standard.relay.metered.ca:443?transport=tcp',
+    username: 'openrelayproject',
+    credential: 'openrelayproject',
+  },
+]
 
 function getOrCreateDeviceId() {
   try {
@@ -57,22 +81,6 @@ function App() {
   if (!import.meta.env.VITE_SOCKET_URL) {
     console.warn('[Socket] VITE_SOCKET_URL not set; using fallback Render URL')
   }
-
-  const iceServers = useMemo(() => {
-    const stunServers = import.meta.env.VITE_ICE_SERVERS
-      ? import.meta.env.VITE_ICE_SERVERS.split(',').map((url) => ({ urls: url.trim() }))
-      : [{ urls: 'stun:stun.l.google.com:19302' }]
-
-    const turnServer = import.meta.env.VITE_TURN_URL
-      ? {
-          urls: import.meta.env.VITE_TURN_URL,
-          username: import.meta.env.VITE_TURN_USERNAME,
-          credential: import.meta.env.VITE_TURN_CREDENTIAL,
-        }
-      : null
-
-    return turnServer ? [...stunServers, turnServer] : [...stunServers]
-  }, [])
 
   useEffect(() => {
     if (!ageVerified) return
@@ -134,11 +142,14 @@ function App() {
     // Register all listeners before connecting to avoid missing events.
 
     const createPeerConnection = () => {
-      console.log('[WebRTC] createPeerConnection, iceServers:', iceServers)
+      console.log(
+        '[WebRTC] createPeerConnection, iceServers:',
+        ICE_SERVERS.map((s) => ({ ...s, credential: s.credential ? '***' : undefined }))
+      )
       if (peerConnectionRef.current) {
         peerConnectionRef.current.close()
       }
-      const pc = new RTCPeerConnection({ iceServers })
+      const pc = new RTCPeerConnection({ iceServers: ICE_SERVERS })
       peerConnectionRef.current = pc
 
       if (localStreamRef.current) {
@@ -294,7 +305,7 @@ function App() {
       closePeerConnection()
       socket.disconnect()
     }
-  }, [socketUrl, iceServers])
+  }, [socketUrl])
 
   const handleAgeVerified = () => {
     try {

@@ -21,12 +21,9 @@ Ce dossier contient le frontend React + Vite de LiveTalk.
 
    ```
    VITE_SOCKET_URL=<URL du backend Render une fois déployé>
-   VITE_TURN_URL=turn:<IP publique du VPS TURN>:3478
-   VITE_TURN_USERNAME=<utilisateur TURN>
-   VITE_TURN_CREDENTIAL=<mot de passe TURN>
    ```
 
-   Les valeurs TURN (`VITE_TURN_URL`, `VITE_TURN_USERNAME`, `VITE_TURN_CREDENTIAL`) doivent correspondre à celles configurées dans `livetalk-turn/turnserver.conf`.
+   Les serveurs STUN/TURN sont configurés directement dans le code (`App.jsx`) via le service gratuit [Open Relay Project](https://www.metered.ca/tools/openrelay/).
 
 4. **Configurer le build**
 

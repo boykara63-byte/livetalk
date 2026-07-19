@@ -11,12 +11,24 @@ PORT=3001
 DATABASE_URL=postgres://user:password@host:5432/database
 FRONTEND_URL=https://your-frontend-url.vercel.app
 NODE_ENV=development
+JWT_SECRET=une-chaine-aleatoire-tres-longue
+ADMIN_PASSWORD_HASH=$2b$10$...
 ```
 
 - `PORT` : port d'écoute. Sur Render, il est fourni automatiquement ; en local, `3001` par défaut.
 - `DATABASE_URL` : connection string PostgreSQL.
 - `FRONTEND_URL` : URL du frontend, utilisée pour restreindre le CORS. Laissez-la vide ou non définie en local pour conserver `origin: "*"`.
 - `NODE_ENV` : `development` en local, `production` sur Render.
+- `JWT_SECRET` : chaîne aléatoire longue pour signer les tokens admin.
+- `ADMIN_PASSWORD_HASH` : hash bcrypt du mot de passe admin (voir ci-dessous).
+
+Pour générer le hash admin une seule fois :
+
+```bash
+node -e "console.log(require('bcrypt').hashSync('TON_MOT_DE_PASSE', 10))"
+```
+
+Ne stockez jamais le mot de passe en clair dans le code ou les variables d'environnement.
 
 ## Base de données PostgreSQL sur Neon
 
@@ -40,13 +52,11 @@ Depuis le dossier `backend` :
 # Installez les dépendances si ce n'est pas déjà fait
 npm install
 
-# Appliquez la migration
+# Appliquez les migrations
 npm run migrate
-# ou directement
-node migrate.js migrations/001_init.sql
 ```
 
-La migration crée les tables `users` et `reports` ainsi que leurs index.
+`migrate.js` exécute automatiquement tous les fichiers `.sql` du dossier `migrations/` dans l'ordre alphabétique.
 
 > **Connexion SSL :** `db.js` active automatiquement `ssl: { rejectUnauthorized: false }` lorsque la connection string contient `neon.tech` ou que `NODE_ENV=production`. Cela est nécessaire pour se connecter à Neon.
 
@@ -95,5 +105,5 @@ services:
 ```bash
 npm run dev      # démarrage en développement avec nodemon
 npm start        # démarrage en production
-npm run migrate  # exécute migrations/001_init.sql
+npm run migrate  # exécute toutes les migrations dans migrations/
 ```

@@ -3,9 +3,21 @@ const express = require("express");
 const http = require("http");
 const { Server } = require("socket.io");
 const cors = require("cors");
+const bcrypt = require("bcrypt");
+const jwt = require("jsonwebtoken");
+const rateLimit = require("express-rate-limit");
 const { pool } = require("./db");
 
 const allowedOrigin = process.env.FRONTEND_URL || "*";
+const ADMIN_PASSWORD_HASH = process.env.ADMIN_PASSWORD_HASH;
+const JWT_SECRET = process.env.JWT_SECRET;
+
+if (!ADMIN_PASSWORD_HASH) {
+  console.warn("[Admin] ADMIN_PASSWORD_HASH is not set. Admin login will not work.");
+}
+if (!JWT_SECRET) {
+  console.warn("[Admin] JWT_SECRET is not set. Admin login will not work.");
+}
 
 const app = express();
 app.use(cors({ origin: allowedOrigin }));
@@ -26,6 +38,7 @@ const io = new Server(server, {
 const queue = [];
 const activePairs = new Map();
 const activePairDevices = new Map();
+const deviceSockets = new Map();
 
 function getOnlineCount() {
   let count = 0;
@@ -122,6 +135,34 @@ function removeFromQueue(socket) {
   }
 }
 
+const loginLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 5,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: "Trop de tentatives. Réessayez plus tard." },
+});
+
+function requireAdmin(req, res, next) {
+  const authHeader = req.headers.authorization;
+  if (!authHeader || !authHeader.startsWith("Bearer ")) {
+    return res.status(401).json({ error: "Token manquant." });
+  }
+
+  const token = authHeader.slice(7);
+  try {
+    const decoded = jwt.verify(token, JWT_SECRET);
+    if (decoded.role !== "admin") {
+      return res.status(403).json({ error: "Accès refusé." });
+    }
+    req.admin = decoded;
+    next();
+  } catch (err) {
+    console.error("[Admin] JWT verification failed:", err.message);
+    return res.status(401).json({ error: "Token invalide ou expiré." });
+  }
+}
+
 app.post("/api/verify-age", async (req, res) => {
   const { deviceId, birthDate, country } = req.body;
   if (!deviceId || !birthDate) {
@@ -195,6 +236,216 @@ app.post("/api/report", async (req, res) => {
   }
 });
 
+app.post("/api/admin/login", loginLimiter, async (req, res) => {
+  const { password } = req.body;
+
+  if (!ADMIN_PASSWORD_HASH || !JWT_SECRET) {
+    return res.status(500).json({ error: "Configuration admin incomplète." });
+  }
+
+  if (!password) {
+    return res.status(400).json({ error: "Mot de passe requis." });
+  }
+
+  try {
+    const match = await bcrypt.compare(password, ADMIN_PASSWORD_HASH);
+    if (!match) {
+      return res.status(401).json({ error: "Mot de passe incorrect." });
+    }
+
+    const token = jwt.sign({ role: "admin" }, JWT_SECRET, { expiresIn: "24h" });
+    return res.json({ token });
+  } catch (err) {
+    console.error("[Admin] login error:", err.message);
+    return res.status(500).json({ error: "Erreur serveur" });
+  }
+});
+
+app.get("/api/admin/stats", requireAdmin, async (req, res) => {
+  try {
+    const { rows: totalUsersRows } = await pool.query(`SELECT COUNT(*) FROM users`);
+    const { rows: verifiedUsersRows } = await pool.query(
+      `SELECT COUNT(*) FROM users WHERE age_verified = TRUE`
+    );
+    const { rows: bannedUsersRows } = await pool.query(
+      `SELECT COUNT(*) FROM users WHERE is_banned = TRUE`
+    );
+    const { rows: totalReportsRows } = await pool.query(`SELECT COUNT(*) FROM reports`);
+    const { rows: reportsLast24hRows } = await pool.query(
+      `SELECT COUNT(*) FROM reports WHERE created_at > NOW() - INTERVAL '24 hours'`
+    );
+    const { rows: usersByCountryRows } = await pool.query(
+      `SELECT country, COUNT(*) AS count
+       FROM users
+       GROUP BY country
+       ORDER BY count DESC`
+    );
+    const { rows: signupsRows } = await pool.query(
+      `SELECT DATE(created_at) AS date, COUNT(*) AS count
+       FROM users
+       WHERE created_at >= NOW() - INTERVAL '7 days'
+       GROUP BY DATE(created_at)
+       ORDER BY date ASC`
+    );
+
+    return res.json({
+      totalUsers: parseInt(totalUsersRows[0].count, 10),
+      onlineNow: getOnlineCount(),
+      verifiedUsers: parseInt(verifiedUsersRows[0].count, 10),
+      bannedUsers: parseInt(bannedUsersRows[0].count, 10),
+      totalReports: parseInt(totalReportsRows[0].count, 10),
+      reportsLast24h: parseInt(reportsLast24hRows[0].count, 10),
+      usersByCountry: usersByCountryRows.map((r) => ({
+        country: r.country || "Inconnu",
+        count: parseInt(r.count, 10),
+      })),
+      signupsLast7Days: signupsRows.map((r) => ({
+        date: r.date,
+        count: parseInt(r.count, 10),
+      })),
+    });
+  } catch (err) {
+    console.error("[Admin] stats error:", err.message);
+    return res.status(500).json({ error: "Erreur serveur" });
+  }
+});
+
+app.get("/api/admin/reports", requireAdmin, async (req, res) => {
+  const page = Math.max(1, parseInt(req.query.page, 10) || 1);
+  const limit = Math.min(200, Math.max(1, parseInt(req.query.limit, 10) || 50));
+  const offset = (page - 1) * limit;
+
+  try {
+    const { rows } = await pool.query(
+      `SELECT r.id, r.reporter_device_id, r.reported_device_id, r.reason, r.created_at,
+              u.is_banned AS reported_is_banned
+       FROM reports r
+       LEFT JOIN users u ON u.device_id = r.reported_device_id
+       ORDER BY r.created_at DESC
+       LIMIT $1 OFFSET $2`,
+      [limit, offset]
+    );
+
+    const { rows: countRows } = await pool.query(`SELECT COUNT(*) FROM reports`);
+    const total = parseInt(countRows[0].count, 10);
+
+    return res.json({
+      reports: rows,
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit),
+    });
+  } catch (err) {
+    console.error("[Admin] reports error:", err.message);
+    return res.status(500).json({ error: "Erreur serveur" });
+  }
+});
+
+app.get("/api/admin/users", requireAdmin, async (req, res) => {
+  const page = Math.max(1, parseInt(req.query.page, 10) || 1);
+  const limit = Math.min(200, Math.max(1, parseInt(req.query.limit, 10) || 50));
+  const offset = (page - 1) * limit;
+  const { search, country, is_banned } = req.query;
+
+  const conditions = [];
+  const params = [];
+
+  if (search) {
+    params.push(`%${search}%`);
+    conditions.push(`device_id ILIKE $${params.length}`);
+  }
+  if (country) {
+    params.push(country);
+    conditions.push(`country = $${params.length}`);
+  }
+  if (is_banned === "true" || is_banned === "false") {
+    params.push(is_banned === "true");
+    conditions.push(`is_banned = $${params.length}`);
+  }
+
+  const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : "";
+  const countParams = params;
+
+  try {
+    const { rows } = await pool.query(
+      `SELECT id, device_id, birth_date, age_verified, country, is_banned, ban_reason, created_at
+       FROM users
+       ${whereClause}
+       ORDER BY created_at DESC
+       LIMIT $${params.length + 1} OFFSET $${params.length + 2}`,
+      [...params, limit, offset]
+    );
+
+    const { rows: countRows } = await pool.query(
+      `SELECT COUNT(*) FROM users ${whereClause}`,
+      countParams
+    );
+    const total = parseInt(countRows[0].count, 10);
+
+    return res.json({
+      users: rows,
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit),
+    });
+  } catch (err) {
+    console.error("[Admin] users error:", err.message);
+    return res.status(500).json({ error: "Erreur serveur" });
+  }
+});
+
+app.post("/api/admin/ban", requireAdmin, async (req, res) => {
+  const { deviceId, reason } = req.body;
+  if (!deviceId) {
+    return res.status(400).json({ error: "deviceId requis." });
+  }
+
+  try {
+    await pool.query(
+      `UPDATE users SET is_banned = TRUE, ban_reason = $2 WHERE device_id = $1`,
+      [deviceId, reason || "Banni depuis l'admin"]
+    );
+
+    const socketId = deviceSockets.get(deviceId);
+    if (socketId) {
+      const socket = io.sockets.sockets.get(socketId);
+      if (socket) {
+        removeFromQueue(socket);
+        leavePair(socket);
+        socket.emit("join-error", { reason: "banned", message: "Vous avez été banni." });
+        socket.disconnect(true);
+        console.log(`[Admin] banned and disconnected socket ${socketId}`);
+      }
+      deviceSockets.delete(deviceId);
+    }
+
+    return res.json({ success: true });
+  } catch (err) {
+    console.error("[Admin] ban error:", err.message);
+    return res.status(500).json({ error: "Erreur serveur" });
+  }
+});
+
+app.post("/api/admin/unban", requireAdmin, async (req, res) => {
+  const { deviceId } = req.body;
+  if (!deviceId) {
+    return res.status(400).json({ error: "deviceId requis." });
+  }
+
+  try {
+    await pool.query(
+      `UPDATE users SET is_banned = FALSE, ban_reason = NULL WHERE device_id = $1`,
+      [deviceId]
+    );
+    return res.json({ success: true });
+  } catch (err) {
+    console.error("[Admin] unban error:", err.message);
+    return res.status(500).json({ error: "Erreur serveur" });
+  }
+});
+
 io.on("connection", (socket) => {
   console.log("[Socket] connection", socket.id);
   const count = getOnlineCount();
@@ -229,6 +480,7 @@ io.on("connection", (socket) => {
       }
 
       socket.data.deviceId = deviceId;
+      deviceSockets.set(deviceId, socket.id);
       removeFromQueue(socket);
       leavePair(socket);
       queue.push(socket);
@@ -300,6 +552,12 @@ io.on("connection", (socket) => {
     console.log(`[Socket] disconnect ${socket.id}`);
     removeFromQueue(socket);
     leavePair(socket);
+    if (socket.data.deviceId) {
+      const current = deviceSockets.get(socket.data.deviceId);
+      if (current === socket.id) {
+        deviceSockets.delete(socket.data.deviceId);
+      }
+    }
     process.nextTick(() => {
       const count = getOnlineCount();
       console.log("[Socket] online-count emit after disconnect:", count);

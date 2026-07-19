@@ -1,0 +1,361 @@
+#root {
+  width: auto;
+  max-width: none;
+  margin: 0;
+  border: none;
+  text-align: left;
+}
+
+.admin-login-screen,
+.admin-dashboard {
+  font-family: 'Poppins', system-ui, sans-serif;
+  color: #1a1330;
+  background: #f0eefa;
+  min-height: 100vh;
+  box-sizing: border-box;
+}
+
+.admin-login-screen {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: linear-gradient(135deg, #2d1b69 0%, #4c3a9c 100%);
+}
+
+.admin-login-card {
+  width: 100%;
+  max-width: 400px;
+  background: #ffffff;
+  border-radius: 24px;
+  padding: 40px;
+  box-shadow: 0 8px 24px rgba(45, 27, 105, 0.2);
+  text-align: center;
+}
+
+.admin-login-card h1 {
+  color: #2d1b69;
+  margin: 0 0 24px;
+  font-size: 28px;
+}
+
+.admin-login-form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  text-align: left;
+}
+
+.admin-login-label {
+  font-size: 14px;
+  font-weight: 600;
+  color: #6b667e;
+}
+
+.admin-login-input,
+.admin-input,
+.admin-select {
+  width: 100%;
+  min-height: 48px;
+  padding: 12px 16px;
+  border: 1px solid #e7e2f8;
+  border-radius: 12px;
+  font-family: inherit;
+  font-size: 15px;
+  background: #ffffff;
+  color: #1a1330;
+  outline: none;
+  box-sizing: border-box;
+}
+
+.admin-login-input:focus,
+.admin-input:focus,
+.admin-select:focus {
+  border-color: #ff6b4a;
+  box-shadow: 0 0 0 3px rgba(255, 107, 74, 0.15);
+}
+
+.admin-login-error {
+  color: #ef4444;
+  font-size: 14px;
+  margin: 0;
+}
+
+.admin-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 10px 20px;
+  border: none;
+  border-radius: 9999px;
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  background: #ffffff;
+  color: #2d1b69;
+  border: 1px solid #e7e2f8;
+  transition: transform 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
+}
+
+.admin-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.admin-button-primary {
+  background: #ff6b4a;
+  color: #ffffff;
+  border: none;
+  box-shadow: 0 6px 16px rgba(255, 107, 74, 0.3);
+}
+
+.admin-button-primary:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgba(255, 107, 74, 0.35);
+}
+
+.admin-button-danger {
+  background: #fee2e2;
+  color: #ef4444;
+  border: none;
+}
+
+.admin-button-small {
+  padding: 6px 12px;
+  min-height: 32px;
+  font-size: 12px;
+}
+
+.admin-button-logout {
+  margin-top: auto;
+  background: transparent;
+  color: #ffffff;
+  border-color: rgba(255, 255, 255, 0.4);
+}
+
+.admin-dashboard {
+  display: flex;
+  min-height: 100vh;
+}
+
+.admin-sidebar {
+  width: 260px;
+  background: #2d1b69;
+  color: #ffffff;
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  flex-shrink: 0;
+}
+
+.admin-sidebar h2 {
+  color: #ffffff;
+  margin: 0;
+  font-size: 22px;
+}
+
+.admin-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.admin-nav button {
+  background: transparent;
+  border: none;
+  color: rgba(255, 255, 255, 0.8);
+  text-align: left;
+  padding: 12px 16px;
+  border-radius: 12px;
+  font-family: inherit;
+  font-size: 15px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.admin-nav button:hover,
+.admin-nav button.active {
+  background: rgba(255, 255, 255, 0.12);
+  color: #ffffff;
+}
+
+.admin-main {
+  flex: 1;
+  padding: 32px;
+  overflow-y: auto;
+  min-width: 0;
+}
+
+.admin-tab-content {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.admin-tab-content h3 {
+  margin: 0;
+  color: #2d1b69;
+  font-size: 20px;
+}
+
+.admin-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 16px;
+}
+
+.admin-card {
+  background: #ffffff;
+  border-radius: 16px;
+  padding: 20px;
+  box-shadow: 0 4px 16px rgba(45, 27, 105, 0.08);
+  text-align: center;
+}
+
+.admin-card-title {
+  font-size: 13px;
+  color: #6b667e;
+  font-weight: 600;
+  margin: 0 0 8px;
+}
+
+.admin-card-value {
+  font-size: 32px;
+  font-weight: 700;
+  color: #2d1b69;
+  margin: 0;
+}
+
+.admin-section {
+  background: #ffffff;
+  border-radius: 16px;
+  padding: 20px;
+  box-shadow: 0 4px 16px rgba(45, 27, 105, 0.08);
+}
+
+.admin-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+
+.admin-table th,
+.admin-table td {
+  padding: 12px;
+  text-align: left;
+  border-bottom: 1px solid #e7e2f8;
+  vertical-align: middle;
+}
+
+.admin-table th {
+  font-weight: 600;
+  color: #6b667e;
+  background: #f7f6fb;
+}
+
+.admin-table tbody tr:hover {
+  background: #faf9fd;
+}
+
+.admin-empty {
+  color: #6b667e;
+  text-align: center;
+  padding: 24px;
+  font-size: 14px;
+}
+
+.admin-device-id {
+  font-family: ui-monospace, Consolas, monospace;
+  font-size: 12px;
+  word-break: break-all;
+  max-width: 200px;
+}
+
+.admin-filters {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.admin-input,
+.admin-select {
+  max-width: 260px;
+}
+
+.admin-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  padding: 12px 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: #6b667e;
+}
+
+.admin-chart {
+  display: flex;
+  align-items: flex-end;
+  gap: 12px;
+  height: 160px;
+  padding: 16px 0 4px;
+}
+
+.admin-chart-bar-wrap {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+  height: 100%;
+}
+
+.admin-chart-bar {
+  width: 100%;
+  min-height: 4px;
+  background: linear-gradient(180deg, #ff6b4a 0%, #b8431f 100%);
+  border-radius: 6px 6px 0 0;
+  transition: height 0.3s ease;
+}
+
+.admin-chart-label {
+  font-size: 11px;
+  color: #6b667e;
+  font-weight: 600;
+}
+
+@media (max-width: 768px) {
+  .admin-dashboard {
+    flex-direction: column;
+  }
+
+  .admin-sidebar {
+    width: auto;
+    flex-direction: row;
+    align-items: center;
+    flex-wrap: wrap;
+  }
+
+  .admin-nav {
+    flex-direction: row;
+    flex-wrap: wrap;
+  }
+
+  .admin-button-logout {
+    margin-top: 0;
+  }
+
+  .admin-main {
+    padding: 20px;
+  }
+
+  .admin-cards {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}

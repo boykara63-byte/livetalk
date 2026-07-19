@@ -34,6 +34,17 @@ Variables d'environnement à renseigner dans le dashboard Render :
 - `PORT` : géré automatiquement par Render
 - `FRONTEND_URL` : URL du frontend Vercel (pour CORS)
 - `NODE_ENV` : `production`
+- `JWT_SECRET` : chaîne aléatoire longue pour signer les tokens admin
+- `ADMIN_PASSWORD_HASH` : hash bcrypt du mot de passe admin
+
+Générez `ADMIN_PASSWORD_HASH` une seule fois localement :
+
+```bash
+cd backend
+node -e "console.log(require('bcrypt').hashSync('TON_MOT_DE_PASSE', 10))"
+```
+
+Copiez la chaîne obtenue dans la variable d'environnement Render. Ne stockez jamais le mot de passe en clair.
 
 ## Serveur TURN (VPS)
 

@@ -52,7 +52,11 @@ function App() {
     }
   })
 
-  const socketUrl = import.meta.env.VITE_SOCKET_URL
+  const socketUrl = import.meta.env.VITE_SOCKET_URL || 'https://livetalk-hlii.onrender.com'
+
+  if (!import.meta.env.VITE_SOCKET_URL) {
+    console.warn('[Socket] VITE_SOCKET_URL not set; using fallback Render URL')
+  }
 
   const iceServers = useMemo(() => {
     const stunServers = import.meta.env.VITE_ICE_SERVERS

@@ -3,19 +3,12 @@ import { io } from 'socket.io-client'
 import AgeGateScreen from './components/AgeGateScreen'
 import StartScreen from './components/StartScreen'
 import VideoCallScreen from './components/VideoCallScreen'
+import { EFFECTS, loadFaceLandmarker, drawEffect } from './effects/faceEffects'
 import './theme.css'
 import './App.css'
 
 const DEVICE_ID_KEY = 'livetalk-device-id'
 const AGE_VERIFIED_KEY = 'livetalk-age-verified'
-
-const FILTERS = [
-  { key: 'none', label: 'Normal', filter: 'none' },
-  { key: 'bw', label: 'NB', filter: 'grayscale(100%)' },
-  { key: 'sepia', label: 'Sépia', filter: 'sepia(80%)' },
-  { key: 'vintage', label: 'Vintage', filter: 'contrast(1.1) saturate(1.3) sepia(30%)' },
-  { key: 'vivid', label: 'Vif', filter: 'saturate(1.5) contrast(1.1)' },
-]
 
 const ICE_SERVERS = [
   { urls: 'stun:stun.relay.metered.ca:80' },
@@ -68,7 +61,11 @@ function App() {
   const canvasStreamRef = useRef(null)
   const videoElementRef = useRef(null)
   const rafIdRef = useRef(null)
-  const activeFilterRef = useRef('none')
+  const faceLandmarkerRef = useRef(null)
+  const faceLandmarkResultRef = useRef(null)
+  const lastDetectionTimeRef = useRef(0)
+  const videoSenderRef = useRef(null)
+  const activeEffectRef = useRef('none')
 
   const [status, setStatus] = useState('Déconnecté')
   const [partnerId, setPartnerId] = useState(null)
@@ -83,7 +80,9 @@ function App() {
   const [hasJoined, setHasJoined] = useState(false)
   const [isMicOn, setIsMicOn] = useState(true)
   const [isCameraOn, setIsCameraOn] = useState(true)
-  const [activeFilter, setActiveFilter] = useState('none')
+  const [activeEffect, setActiveEffect] = useState('none')
+  const [faceEffectsReady, setFaceEffectsReady] = useState(false)
+  const [faceEffectsError, setFaceEffectsError] = useState(false)
   const [ageVerified, setAgeVerified] = useState(() => {
     try {
       return localStorage.getItem(AGE_VERIFIED_KEY) === 'true'
@@ -132,11 +131,23 @@ function App() {
   }, [ageVerified])
 
   useEffect(() => {
-    activeFilterRef.current = activeFilter
-  }, [activeFilter])
+    activeEffectRef.current = activeEffect
+  }, [activeEffect])
+
+  const replaceVideoTrack = (track) => {
+    if (!peerConnectionRef.current || !track) return
+    const sender = peerConnectionRef.current.getSenders().find((s) => s.track?.kind === 'video')
+    if (sender) {
+      sender.replaceTrack(track).catch((err) => {
+        console.error('[WebRTC] replaceTrack failed:', err)
+      })
+    }
+  }
 
   useEffect(() => {
     if (!rawStream) return
+
+    let cancelled = false
 
     const video = document.createElement('video')
     video.srcObject = rawStream
@@ -154,25 +165,59 @@ function App() {
     const canvasStream = canvas.captureStream(24)
     canvasStreamRef.current = canvasStream
 
-    let rafId
-    const draw = () => {
-      if (video.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA) {
-        const filter = FILTERS.find((f) => f.key === activeFilterRef.current)?.filter || 'none'
-        ctx.filter = filter === 'none' ? 'none' : filter
-        ctx.drawImage(video, 0, 0, canvas.width, canvas.height)
-      }
-      rafId = requestAnimationFrame(draw)
-      rafIdRef.current = rafId
-    }
-    draw()
-
     const combinedStream = new MediaStream([
       ...canvasStream.getVideoTracks(),
       ...rawStream.getAudioTracks(),
     ])
     setLocalStream(combinedStream)
 
+    loadFaceLandmarker()
+      .then((fl) => {
+        if (cancelled) return
+        faceLandmarkerRef.current = fl
+        setFaceEffectsReady(true)
+        console.log('[FaceEffects] FaceLandmarker loaded')
+      })
+      .catch((err) => {
+        console.error('[FaceEffects] Could not load FaceLandmarker:', err)
+        setFaceEffectsError(true)
+      })
+
+    const DETECTION_INTERVAL_MS = 66 // ~15 FPS
+
+    let rafId
+    const draw = () => {
+      if (video.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA) {
+        ctx.filter = 'none'
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height)
+
+        const fl = faceLandmarkerRef.current
+        const now = performance.now()
+        if (fl && now - lastDetectionTimeRef.current >= DETECTION_INTERVAL_MS) {
+          try {
+            const result = fl.detectForVideo(video, now)
+            faceLandmarkResultRef.current = result
+            lastDetectionTimeRef.current = now
+          } catch (err) {
+            console.error('[FaceEffects] detection error:', err)
+          }
+        }
+
+        const result = faceLandmarkResultRef.current
+        const landmarks = result?.faceLandmarks?.[0]
+        if (landmarks) {
+          drawEffect(ctx, landmarks, activeEffectRef.current, canvas.width, canvas.height)
+        }
+      }
+      rafId = requestAnimationFrame(draw)
+      rafIdRef.current = rafId
+    }
+    draw()
+
+    replaceVideoTrack(canvasStream.getVideoTracks()[0])
+
     return () => {
+      cancelled = true
       cancelAnimationFrame(rafId)
       video.pause()
       video.srcObject = null
@@ -180,11 +225,14 @@ function App() {
       canvasStreamRef.current = null
       canvasRef.current = null
       rafIdRef.current = null
+      faceLandmarkerRef.current = null
+      faceLandmarkResultRef.current = null
     }
   }, [rawStream])
 
   const closePeerConnection = () => {
     pendingCandidatesRef.current = []
+    videoSenderRef.current = null
     if (peerConnectionRef.current) {
       peerConnectionRef.current.close()
       peerConnectionRef.current = null
@@ -228,6 +276,15 @@ function App() {
       sendStream.getTracks().forEach((track) => {
         pc.addTrack(track, sendStream)
       })
+
+      const videoSender = pc.getSenders().find((s) => s.track?.kind === 'video')
+      if (videoSender) {
+        videoSenderRef.current = videoSender
+        const canvasTrack = canvasStreamRef.current?.getVideoTracks()[0]
+        if (canvasTrack) {
+          videoSender.replaceTrack(canvasTrack).catch((err) => console.error('[WebRTC] replaceTrack error:', err))
+        }
+      }
 
       pc.ontrack = (event) => {
         console.log('[WebRTC] remote track received', event.streams)
@@ -457,8 +514,8 @@ function App() {
     setMessages((prev) => [...prev, { text: trimmed, self: true }])
   }
 
-  const handleSelectFilter = (key) => {
-    setActiveFilter(key)
+  const handleSelectEffect = (key) => {
+    setActiveEffect(key)
   }
 
   return (
@@ -494,8 +551,11 @@ function App() {
                 onSendMessage={sendMessage}
                 onlineCount={onlineCount}
                 partnerCountry={partnerCountry}
-                activeFilter={activeFilter}
-                onSelectFilter={handleSelectFilter}
+                activeEffect={activeEffect}
+                effects={EFFECTS}
+                onSelectEffect={handleSelectEffect}
+                faceEffectsReady={faceEffectsReady}
+                faceEffectsError={faceEffectsError}
               />
             )}
           </>

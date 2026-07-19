@@ -11,14 +11,6 @@ import {
 import Logo from './Logo'
 import { formatCountry } from '../data/countries'
 
-const FILTERS = [
-  { key: 'none', label: 'Normal', filter: 'none' },
-  { key: 'bw', label: 'NB', filter: 'grayscale(100%)' },
-  { key: 'sepia', label: 'Sépia', filter: 'sepia(80%)' },
-  { key: 'vintage', label: 'Vintage', filter: 'contrast(1.1) saturate(1.3) sepia(30%)' },
-  { key: 'vivid', label: 'Vif', filter: 'saturate(1.5) contrast(1.1)' },
-]
-
 function VideoCallScreen({
   status,
   partnerId,
@@ -35,8 +27,11 @@ function VideoCallScreen({
   onSendMessage,
   onlineCount,
   partnerCountry,
-  activeFilter,
-  onSelectFilter,
+  activeEffect,
+  effects,
+  onSelectEffect,
+  faceEffectsReady,
+  faceEffectsError,
 }) {
   const messagesEndRef = useRef(null)
   const [message, setMessage] = useState('')
@@ -78,6 +73,8 @@ function VideoCallScreen({
   }
 
   const countryLabel = formatCountry(partnerCountry)
+
+  const effectKeys = effects ? Object.keys(effects) : []
 
   return (
     <div className="video-call-screen">
@@ -124,18 +121,28 @@ function VideoCallScreen({
         />
 
         <div className="filter-row">
-          {FILTERS.map((f) => (
-            <button
-              key={f.key}
-              type="button"
-              className={`filter-button ${activeFilter === f.key ? 'active' : ''}`}
-              onClick={() => onSelectFilter(f.key)}
-              aria-label={`Filtre ${f.label}`}
-              title={f.label}
-            >
-              {f.label}
-            </button>
-          ))}
+          {faceEffectsError && (
+            <span className="filter-error" title="Effets non disponibles">
+              Effets indisponibles
+            </span>
+          )}
+          {effectKeys.map((key) => {
+            const effect = effects[key]
+            return (
+              <button
+                key={key}
+                type="button"
+                className={`filter-button ${activeEffect === key ? 'active' : ''}`}
+                onClick={() => onSelectEffect(key)}
+                aria-label={`Effet ${effect.label}`}
+                title={effect.label}
+                disabled={!faceEffectsReady || faceEffectsError}
+              >
+                <span aria-hidden="true">{effect.icon}</span>
+                {effect.label}
+              </button>
+            )
+          })}
         </div>
       </div>
 

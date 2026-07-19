@@ -331,23 +331,24 @@
 
 .filter-row {
   position: absolute;
-  bottom: 12px;
-  left: 12px;
+  bottom: 10px;
+  left: 10px;
   z-index: 4;
   display: flex;
-  gap: 8px;
+  gap: 6px;
   flex-wrap: wrap;
-  max-width: 70%;
+  max-width: 78%;
 }
 
 .filter-button {
-  min-width: 46px;
-  height: 46px;
-  border-radius: 12px;
+  min-width: 64px;
+  max-width: 80px;
+  height: 54px;
+  border-radius: 14px;
   border: 2px solid transparent;
-  background: rgba(26, 19, 48, 0.7);
+  background: rgba(26, 19, 48, 0.75);
   color: var(--color-white);
-  font-size: 10px;
+  font-size: 9px;
   font-weight: 600;
   cursor: pointer;
   transition: transform var(--transition), border-color var(--transition), background var(--transition);
@@ -357,13 +358,17 @@
   align-items: center;
   justify-content: center;
   text-align: center;
-  line-height: 1.1;
-  padding: 3px 4px;
-  gap: 1px;
+  line-height: 1.15;
+  padding: 4px 6px;
+  gap: 2px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: normal;
+  word-break: break-word;
 }
 
 .filter-button span {
-  font-size: 14px;
+  font-size: 16px;
   line-height: 1;
 }
 

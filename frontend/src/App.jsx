@@ -35,6 +35,7 @@ function App() {
 
   const [status, setStatus] = useState('Déconnecté')
   const [partnerId, setPartnerId] = useState(null)
+  const [partnerDeviceId, setPartnerDeviceId] = useState(null)
   const [messages, setMessages] = useState([])
   const [input, setInput] = useState('')
   const [localStream, setLocalStream] = useState(null)
@@ -83,6 +84,7 @@ function App() {
       audio: true,
     }
 
+    console.log('[Media] Requesting getUserMedia...')
     navigator.mediaDevices
       .getUserMedia(constraints)
       .then((s) => {
@@ -93,9 +95,10 @@ function App() {
           localVideoRef.current.srcObject = s
         }
         setMediaReady(true)
+        console.log('[Media] getUserMedia success')
       })
       .catch((err) => {
-        console.error('getUserMedia error', err)
+        console.error('[Media] getUserMedia error', err)
         setMediaError(err.message)
       })
 
@@ -116,10 +119,17 @@ function App() {
   }
 
   useEffect(() => {
+    if (!socketUrl) {
+      console.error('[Socket] VITE_SOCKET_URL is not defined')
+      return
+    }
+
+    console.log('[Socket] Connecting to', socketUrl)
     const socket = io(socketUrl)
     socketRef.current = socket
 
     const createPeerConnection = () => {
+      console.log('[WebRTC] createPeerConnection, iceServers:', iceServers)
       if (peerConnectionRef.current) {
         peerConnectionRef.current.close()
       }
@@ -133,6 +143,7 @@ function App() {
       }
 
       pc.ontrack = (event) => {
+        console.log('[WebRTC] remote track received', event.streams)
         if (remoteVideoRef.current && event.streams[0]) {
           remoteVideoRef.current.srcObject = event.streams[0]
         }
@@ -140,12 +151,17 @@ function App() {
 
       pc.onicecandidate = (event) => {
         if (event.candidate && socketRef.current) {
+          console.log('[WebRTC] sending ICE candidate')
           socketRef.current.emit('webrtc-ice-candidate', { candidate: event.candidate })
         }
       }
 
       pc.oniceconnectionstatechange = () => {
-        console.log('ICE connection state:', pc.iceConnectionState)
+        console.log('[WebRTC] ICE connection state:', pc.iceConnectionState)
+      }
+
+      pc.onconnectionstatechange = () => {
+        console.log('[WebRTC] connection state:', pc.connectionState)
       }
 
       return pc
@@ -157,19 +173,25 @@ function App() {
         try {
           await pc.addIceCandidate(candidate)
         } catch (err) {
-          console.error('Error adding pending ICE candidate', err)
+          console.error('[WebRTC] Error adding pending ICE candidate', err)
         }
       }
     }
 
+    socket.on('connect', () => {
+      console.log('[Socket] connected, id:', socket.id)
+    })
+
     socket.on('online-count', (count) => {
+      console.log('[Socket] online-count received:', count)
       setOnlineCount(count)
     })
 
     socket.on('join-error', ({ reason, message }) => {
-      console.error('join-error', reason, message)
+      console.error('[Socket] join-error:', reason, message)
       setStatus(`Erreur : ${message}`)
       setPartnerId(null)
+      setPartnerDeviceId(null)
       setHasJoined(false)
       if (reason === 'not-verified') {
         try {
@@ -179,8 +201,10 @@ function App() {
       }
     })
 
-    socket.on('matched', async ({ partnerId, initiator }) => {
+    socket.on('matched', async ({ partnerId, partnerDeviceId, initiator }) => {
+      console.log('[Socket] matched', { partnerId, partnerDeviceId, initiator })
       setPartnerId(partnerId)
+      setPartnerDeviceId(partnerDeviceId)
       setStatus('Connecté à un partenaire')
 
       const pc = createPeerConnection()
@@ -188,52 +212,61 @@ function App() {
         try {
           const offer = await pc.createOffer()
           await pc.setLocalDescription(offer)
+          console.log('[WebRTC] offer created, sending')
           socket.emit('webrtc-offer', { offer })
         } catch (err) {
-          console.error('Error creating offer', err)
+          console.error('[WebRTC] Error creating offer', err)
         }
       }
     })
 
     socket.on('partner-left', () => {
+      console.log('[Socket] partner-left')
       setPartnerId(null)
+      setPartnerDeviceId(null)
       closePeerConnection()
       setStatus('Partenaire parti')
       setTimeout(() => {
         setStatus('En attente...')
+        console.log('[Socket] re-joining queue after partner left')
         socket.emit('join-queue', { deviceId: deviceIdRef.current })
       }, 500)
     })
 
     socket.on('chat-message', (text) => {
+      console.log('[Chat] received:', text)
       setMessages((prev) => [...prev, { text, self: false }])
     })
 
     socket.on('webrtc-offer', async ({ offer }) => {
+      console.log('[WebRTC] offer received')
       const pc = peerConnectionRef.current || createPeerConnection()
       try {
         await pc.setRemoteDescription(offer)
         await addPendingCandidates(pc)
         const answer = await pc.createAnswer()
         await pc.setLocalDescription(answer)
+        console.log('[WebRTC] answer created, sending')
         socket.emit('webrtc-answer', { answer })
       } catch (err) {
-        console.error('Error handling offer', err)
+        console.error('[WebRTC] Error handling offer', err)
       }
     })
 
     socket.on('webrtc-answer', async ({ answer }) => {
+      console.log('[WebRTC] answer received')
       const pc = peerConnectionRef.current
       if (!pc) return
       try {
         await pc.setRemoteDescription(answer)
         await addPendingCandidates(pc)
       } catch (err) {
-        console.error('Error setting remote answer', err)
+        console.error('[WebRTC] Error setting remote answer', err)
       }
     })
 
     socket.on('webrtc-ice-candidate', async ({ candidate }) => {
+      console.log('[WebRTC] ICE candidate received')
       const pc = peerConnectionRef.current
       if (pc) {
         try {
@@ -243,7 +276,7 @@ function App() {
             pendingCandidatesRef.current.push(candidate)
           }
         } catch (err) {
-          console.error('Error adding ICE candidate', err)
+          console.error('[WebRTC] Error adding ICE candidate', err)
         }
       } else {
         pendingCandidatesRef.current.push(candidate)
@@ -265,9 +298,11 @@ function App() {
 
   const joinQueue = () => {
     closePeerConnection()
+    console.log('[Socket] emit join-queue, deviceId:', deviceIdRef.current)
     socketRef.current?.emit('join-queue', { deviceId: deviceIdRef.current })
     setStatus('En attente...')
     setPartnerId(null)
+    setPartnerDeviceId(null)
   }
 
   const handleStart = () => {
@@ -279,9 +314,11 @@ function App() {
   const handleNext = () => {
     setMessages([])
     closePeerConnection()
+    console.log('[Socket] emit next')
     socketRef.current?.emit('next')
     setStatus('En attente...')
     setPartnerId(null)
+    setPartnerDeviceId(null)
   }
 
   const toggleMic = () => {
@@ -301,20 +338,21 @@ function App() {
   }
 
   const handleReport = async () => {
-    if (!partnerId) return
+    if (!partnerDeviceId) return
     if (!window.confirm('Signaler cet utilisateur ?')) return
+    console.log('[Report] reporting partnerDeviceId:', partnerDeviceId)
     try {
       await fetch(`${socketUrl}/api/report`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           reporterDeviceId: deviceIdRef.current,
-          reportedDeviceId: partnerId,
+          reportedDeviceId: partnerDeviceId,
           reason: 'Signalement utilisateur',
         }),
       })
     } catch (err) {
-      console.error('Erreur signalement', err)
+      console.error('[Report] Error', err)
     }
   }
 
@@ -322,6 +360,7 @@ function App() {
     if (!input.trim() || !partnerId) return
 
     const text = input.trim()
+    console.log('[Chat] sending:', text)
     socketRef.current?.emit('chat-message', text)
     setMessages((prev) => [...prev, { text, self: true }])
     setInput('')

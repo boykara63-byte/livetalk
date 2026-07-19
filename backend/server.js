@@ -38,11 +38,13 @@ function calculateAge(birthDate) {
 }
 
 function tryMatch() {
+  console.log(`[Match] tryMatch called, queue size: ${queue.length}`);
   while (queue.length >= 2) {
     const first = queue.shift();
     const second = queue.shift();
 
     if (!first.connected || !second.connected) {
+      console.log(`[Match] skipped disconnected pair: first.connected=${first.connected}, second.connected=${second.connected}`);
       if (first.connected) queue.unshift(first);
       if (second.connected) queue.unshift(second);
       continue;
@@ -50,6 +52,10 @@ function tryMatch() {
 
     activePairs.set(first.id, second.id);
     activePairs.set(second.id, first.id);
+    activePairDevices.set(first.id, second.data.deviceId);
+    activePairDevices.set(second.id, first.data.deviceId);
+
+    console.log(`[Match] paired ${first.id} <-> ${second.id}`);
 
     first.emit("matched", {
       partnerId: second.id,
@@ -62,6 +68,7 @@ function tryMatch() {
       initiator: false,
     });
   }
+  console.log(`[Match] tryMatch end, queue size: ${queue.length}`);
 }
 
 function leavePair(socket, notifyPartner = true) {
@@ -162,11 +169,15 @@ app.post("/api/report", async (req, res) => {
 });
 
 io.on("connection", (socket) => {
-  console.log("Connexion", socket.id);
-  io.emit("online-count", io.engine.clientsCount);
+  console.log("[Socket] connection", socket.id);
+  const count = io.sockets.sockets.size;
+  console.log("[Socket] online-count emit:", count);
+  io.emit("online-count", count);
 
   socket.on("join-queue", async ({ deviceId }) => {
+    console.log(`[Queue] join-queue from ${socket.id}, deviceId=${deviceId}`);
     if (!deviceId) {
+      console.log(`[Auth] join-error for ${socket.id}: missing deviceId`);
       socket.emit("join-error", { reason: "not-verified", message: "Identifiant manquant." });
       return;
     }
@@ -178,11 +189,13 @@ io.on("connection", (socket) => {
       );
 
       if (rows.length === 0 || !rows[0].age_verified) {
+        console.log(`[Auth] join-error for ${socket.id}: age not verified in DB`);
         socket.emit("join-error", { reason: "not-verified", message: "Vérification d'âge requise." });
         return;
       }
 
       if (rows[0].is_banned) {
+        console.log(`[Auth] join-error for ${socket.id}: user is banned`);
         socket.emit("join-error", { reason: "banned", message: "Vous avez été banni." });
         return;
       }
@@ -191,23 +204,28 @@ io.on("connection", (socket) => {
       removeFromQueue(socket);
       leavePair(socket);
       queue.push(socket);
+      console.log(`[Queue] queue size after push: ${queue.length}`);
       tryMatch();
     } catch (err) {
-      console.error("join-queue error:", err.message);
+      console.error("[Queue] join-queue error:", err.message);
       socket.emit("join-error", { reason: "server", message: "Erreur serveur." });
     }
   });
 
   socket.on("next", () => {
+    console.log(`[Queue] next from ${socket.id}`);
     leavePair(socket);
     removeFromQueue(socket);
     queue.push(socket);
+    console.log(`[Queue] queue size after next: ${queue.length}`);
     tryMatch();
   });
 
   socket.on("leave-queue", () => {
+    console.log(`[Queue] leave-queue from ${socket.id}`);
     removeFromQueue(socket);
     leavePair(socket, false);
+    console.log(`[Queue] queue size after leave: ${queue.length}`);
   });
 
   socket.on("chat-message", (message) => {
@@ -251,10 +269,13 @@ io.on("connection", (socket) => {
   });
 
   socket.on("disconnect", () => {
+    console.log(`[Socket] disconnect ${socket.id}`);
     removeFromQueue(socket);
     leavePair(socket);
     process.nextTick(() => {
-      io.emit("online-count", io.engine.clientsCount);
+      const count = io.sockets.sockets.size;
+      console.log("[Socket] online-count emit after disconnect:", count);
+      io.emit("online-count", count);
     });
   });
 });

@@ -491,15 +491,19 @@ body {
   text-align: left;
 }
 
-.age-gate-form input {
+.age-gate-form input,
+.age-gate-form select {
   padding: 12px 14px;
   border: 1px solid var(--gray-300);
   border-radius: 12px;
   font-size: 16px;
   outline: none;
+  background: var(--white);
+  color: var(--gray-900);
 }
 
-.age-gate-form input:focus {
+.age-gate-form input:focus,
+.age-gate-form select:focus {
   border-color: var(--violet-light);
 }
 

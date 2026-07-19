@@ -27,6 +27,14 @@ const queue = [];
 const activePairs = new Map();
 const activePairDevices = new Map();
 
+function getOnlineCount() {
+  let count = 0;
+  for (const s of io.sockets.sockets.values()) {
+    if (s.connected) count++;
+  }
+  return count;
+}
+
 function calculateAge(birthDate) {
   const today = new Date();
   let age = today.getFullYear() - birthDate.getFullYear();
@@ -170,9 +178,10 @@ app.post("/api/report", async (req, res) => {
 
 io.on("connection", (socket) => {
   console.log("[Socket] connection", socket.id);
-  const count = io.sockets.sockets.size;
+  const count = getOnlineCount();
   console.log("[Socket] online-count emit:", count);
-  io.emit("online-count", count);
+  socket.emit("online-count", count);
+  socket.broadcast.emit("online-count", count);
 
   socket.on("join-queue", async ({ deviceId }) => {
     console.log(`[Queue] join-queue from ${socket.id}, deviceId=${deviceId}`);
@@ -273,7 +282,7 @@ io.on("connection", (socket) => {
     removeFromQueue(socket);
     leavePair(socket);
     process.nextTick(() => {
-      const count = io.sockets.sockets.size;
+      const count = getOnlineCount();
       console.log("[Socket] online-count emit after disconnect:", count);
       io.emit("online-count", count);
     });

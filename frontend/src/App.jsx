@@ -124,8 +124,10 @@ function App() {
     }
 
     console.log('[Socket] Connecting to', socketUrl)
-    const socket = io(socketUrl)
+    const socket = io(socketUrl, { autoConnect: false })
     socketRef.current = socket
+
+    // Register all listeners before connecting to avoid missing events.
 
     const createPeerConnection = () => {
       console.log('[WebRTC] createPeerConnection, iceServers:', iceServers)
@@ -281,6 +283,8 @@ function App() {
         pendingCandidatesRef.current.push(candidate)
       }
     })
+
+    socket.connect()
 
     return () => {
       closePeerConnection()

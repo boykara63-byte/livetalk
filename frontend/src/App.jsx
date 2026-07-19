@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState } from 'react'
 import { io } from 'socket.io-client'
-import { Video } from 'lucide-react'
 import AgeGateScreen from './components/AgeGateScreen'
 import StartScreen from './components/StartScreen'
 import VideoCallScreen from './components/VideoCallScreen'
+import './theme.css'
 import './App.css'
 
 const DEVICE_ID_KEY = 'livetalk-device-id'
@@ -138,8 +138,6 @@ function App() {
     console.log('[Socket] Connecting to', socketUrl)
     const socket = io(socketUrl, { autoConnect: false })
     socketRef.current = socket
-
-    // Register all listeners before connecting to avoid missing events.
 
     const createPeerConnection = () => {
       console.log(
@@ -385,17 +383,6 @@ function App() {
 
   return (
     <div className="app">
-      <header className="app-header">
-        <div className="logo">
-          <Video className="logo-icon" />
-          <span>
-            <span className="logo-live">Live</span>
-            <span className="logo-talk">Talk</span>
-          </span>
-        </div>
-        <div className="online-count">{onlineCount} en ligne</div>
-      </header>
-
       <main className="app-main">
         {!ageVerified ? (
           <AgeGateScreen socketUrl={socketUrl} deviceId={deviceIdRef.current} onVerified={handleAgeVerified} />
@@ -409,7 +396,7 @@ function App() {
             )}
 
             {!hasJoined ? (
-              <StartScreen onStart={handleStart} disabled={!mediaReady} />
+              <StartScreen onStart={handleStart} disabled={!mediaReady} onlineCount={onlineCount} />
             ) : (
               <VideoCallScreen
                 status={status}
@@ -425,6 +412,7 @@ function App() {
                 onNext={handleNext}
                 messages={messages}
                 onSendMessage={sendMessage}
+                onlineCount={onlineCount}
               />
             )}
           </>

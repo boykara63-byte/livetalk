@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { Video } from 'lucide-react'
+import Logo from './Logo'
 
 function AgeGateScreen({ socketUrl, deviceId, onVerified }) {
   const currentYear = new Date().getFullYear()
@@ -25,7 +25,7 @@ function AgeGateScreen({ socketUrl, deviceId, onVerified }) {
     const year = Number(birthYear)
     const age = currentYear - year
     if (age < 18) {
-      setError("Vous devez avoir 18 ans ou plus pour utiliser ce service.")
+      setError('Vous devez avoir 18 ans ou plus pour utiliser ce service.')
       return
     }
 
@@ -52,26 +52,19 @@ function AgeGateScreen({ socketUrl, deviceId, onVerified }) {
   }
 
   return (
-    <div className="age-gate-screen">
+    <div className="age-gate-screen screen-gradient">
       <div className="age-gate-content">
-        <div className="logo-large">
-          <Video className="logo-icon-large" />
-          <span>
-            <span className="logo-live">Live</span>
-            <span className="logo-talk">Talk</span>
-          </span>
-        </div>
+        <Logo size="large" variant="light" />
 
-        <h1>Vérification d'âge</h1>
-        <p className="tagline">
-          Ce service est réservé aux personnes majeures (18+).
-          Indique ton année de naissance.
-        </p>
+        <h1 className="age-gate-title">Confirme ton âge</h1>
 
         <form className="age-gate-form" onSubmit={handleSubmit}>
-          <label htmlFor="birthYear">Année de naissance</label>
+          <label htmlFor="birthYear" className="age-gate-label">
+            Année de naissance
+          </label>
           <select
             id="birthYear"
+            className="age-gate-select"
             value={birthYear}
             onChange={(e) => setBirthYear(e.target.value)}
             required
@@ -86,11 +79,19 @@ function AgeGateScreen({ socketUrl, deviceId, onVerified }) {
               </option>
             ))}
           </select>
+
           {error && <p className="age-gate-error">{error}</p>}
-          <button className="start-button" type="submit" disabled={loading || !birthYear}>
+
+          <button
+            className="button button-accent button-full"
+            type="submit"
+            disabled={loading || !birthYear}
+          >
             {loading ? 'Vérification...' : 'Continuer'}
           </button>
         </form>
+
+        <p className="age-gate-footnote">18 ans et plus requis</p>
       </div>
     </div>
   )

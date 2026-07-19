@@ -1,0 +1,49 @@
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap');
+
+:root {
+  --color-primary: #2D1B69;
+  --color-primary-light: #4C3A9C;
+  --color-accent: #FF6B4A;
+  --color-accent-dark: #B8431F;
+  --color-bg-light: #F0EEFA;
+  --color-bg-card: #E7E2F8;
+  --color-ink: #1A1330;
+  --color-gray: #6B667E;
+  --color-white: #FFFFFF;
+
+  --radius-sm: 12px;
+  --radius-md: 16px;
+  --radius-lg: 24px;
+  --radius-pill: 9999px;
+
+  --shadow-soft: 0 4px 16px rgba(45, 27, 105, 0.12);
+  --shadow-card: 0 8px 24px rgba(45, 27, 105, 0.16);
+  --shadow-button: 0 6px 16px rgba(255, 107, 74, 0.3);
+  --shadow-primary: 0 6px 16px rgba(45, 27, 105, 0.25);
+
+  --transition: 0.2s ease;
+}
+
+* {
+  box-sizing: border-box;
+  -webkit-tap-highlight-color: transparent;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+}
+
+body {
+  font-family: 'Poppins', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  background: var(--color-bg-light);
+  color: var(--color-ink);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+#root {
+  min-height: 100%;
+}

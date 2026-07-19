@@ -6,7 +6,9 @@ import {
   VideoOff,
   Flag,
   Send,
+  ArrowRight,
 } from 'lucide-react'
+import Logo from './Logo'
 
 function VideoCallScreen({
   status,
@@ -22,6 +24,7 @@ function VideoCallScreen({
   onNext,
   messages,
   onSendMessage,
+  onlineCount,
 }) {
   const messagesEndRef = useRef(null)
   const [message, setMessage] = useState('')
@@ -39,7 +42,7 @@ function VideoCallScreen({
   const waiting = status === 'En attente...' || status === 'Partenaire parti'
   const connected = status === 'Connecté à un partenaire'
 
-  const statusLabel = connected ? 'Connecté' : waiting ? status : ''
+  const statusText = connected ? 'Connecté' : waiting ? 'En attente...' : status
 
   const canSend = connected && partnerId
 
@@ -64,10 +67,18 @@ function VideoCallScreen({
 
   return (
     <div className="video-call-screen">
+      <header className="video-call-header">
+        <Logo size="small" variant="dark" />
+        <div className="online-badge">
+          <span className="online-dot" aria-hidden="true" />
+          <span>{onlineCount} en ligne</span>
+        </div>
+      </header>
+
       <div className="video-stage">
-        {statusLabel && (
+        {statusText && (
           <div className={`status-badge ${connected ? 'connected' : 'waiting'}`}>
-            {statusLabel}
+            {statusText}
           </div>
         )}
 
@@ -100,6 +111,7 @@ function VideoCallScreen({
           className={`control-button ${!isMicOn ? 'off' : ''}`}
           onClick={toggleMic}
           aria-label={isMicOn ? 'Couper le micro' : 'Activer le micro'}
+          type="button"
         >
           {isMicOn ? <Mic size={22} /> : <MicOff size={22} />}
         </button>
@@ -108,16 +120,23 @@ function VideoCallScreen({
           className={`control-button ${!isCameraOn ? 'off' : ''}`}
           onClick={toggleCamera}
           aria-label={isCameraOn ? 'Couper la caméra' : 'Activer la caméra'}
+          type="button"
         >
           {isCameraOn ? <VideoIcon size={22} /> : <VideoOff size={22} />}
         </button>
 
-        <button className="control-button report" onClick={onReport} aria-label="Signaler">
+        <button
+          className="control-button report"
+          onClick={onReport}
+          aria-label="Signaler"
+          type="button"
+        >
           <Flag size={22} />
         </button>
 
-        <button className="next-button" onClick={onNext}>
+        <button className="next-button" onClick={onNext} type="button">
           Suivant
+          <ArrowRight size={18} />
         </button>
       </div>
 
@@ -140,6 +159,7 @@ function VideoCallScreen({
         <form className="chat-form" onSubmit={handleSubmit}>
           <input
             type="text"
+            className="chat-input"
             value={message}
             onChange={(e) => setMessage(e.target.value)}
             onKeyDown={handleKeyDown}
@@ -147,7 +167,12 @@ function VideoCallScreen({
             disabled={!canSend}
             enterKeyHint="send"
           />
-          <button type="submit" disabled={!canSend || !message.trim()}>
+          <button
+            className="chat-send"
+            type="submit"
+            disabled={!canSend || !message.trim()}
+            aria-label="Envoyer"
+          >
             <Send size={20} />
           </button>
         </form>

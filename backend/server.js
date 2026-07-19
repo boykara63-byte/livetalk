@@ -41,11 +41,22 @@ const activePairDevices = new Map();
 const deviceSockets = new Map();
 
 function getOnlineCount() {
-  let count = 0;
-  for (const s of io.sockets.sockets.values()) {
-    if (s.connected) count++;
+  try {
+    const sockets = io.sockets?.sockets;
+    if (!sockets) {
+      console.warn("[OnlineCount] io.sockets.sockets not available");
+      return 0;
+    }
+    let count = 0;
+    for (const s of sockets.values()) {
+      if (s.connected) count++;
+    }
+    console.log("[OnlineCount] count:", count, "socket map size:", sockets.size);
+    return count;
+  } catch (err) {
+    console.error("[OnlineCount] error:", err.message);
+    return 0;
   }
-  return count;
 }
 
 function calculateAge(birthDate) {
@@ -262,24 +273,31 @@ app.post("/api/admin/login", loginLimiter, async (req, res) => {
 });
 
 app.get("/api/admin/stats", requireAdmin, async (req, res) => {
+  console.log("[Admin] /api/admin/stats called by admin");
   try {
     const { rows: totalUsersRows } = await pool.query(`SELECT COUNT(*) FROM users`);
+    console.log("[Admin] totalUsers raw:", totalUsersRows);
     const { rows: verifiedUsersRows } = await pool.query(
       `SELECT COUNT(*) FROM users WHERE age_verified = TRUE`
     );
+    console.log("[Admin] verifiedUsers raw:", verifiedUsersRows);
     const { rows: bannedUsersRows } = await pool.query(
       `SELECT COUNT(*) FROM users WHERE is_banned = TRUE`
     );
+    console.log("[Admin] bannedUsers raw:", bannedUsersRows);
     const { rows: totalReportsRows } = await pool.query(`SELECT COUNT(*) FROM reports`);
+    console.log("[Admin] totalReports raw:", totalReportsRows);
     const { rows: reportsLast24hRows } = await pool.query(
       `SELECT COUNT(*) FROM reports WHERE created_at > NOW() - INTERVAL '24 hours'`
     );
+    console.log("[Admin] reportsLast24h raw:", reportsLast24hRows);
     const { rows: usersByCountryRows } = await pool.query(
       `SELECT country, COUNT(*) AS count
        FROM users
        GROUP BY country
        ORDER BY count DESC`
     );
+    console.log("[Admin] usersByCountry raw:", usersByCountryRows);
     const { rows: signupsRows } = await pool.query(
       `SELECT DATE(created_at) AS date, COUNT(*) AS count
        FROM users
@@ -287,26 +305,33 @@ app.get("/api/admin/stats", requireAdmin, async (req, res) => {
        GROUP BY DATE(created_at)
        ORDER BY date ASC`
     );
+    console.log("[Admin] signupsLast7Days raw:", signupsRows);
 
-    return res.json({
-      totalUsers: parseInt(totalUsersRows[0].count, 10),
-      onlineNow: getOnlineCount(),
-      verifiedUsers: parseInt(verifiedUsersRows[0].count, 10),
-      bannedUsers: parseInt(bannedUsersRows[0].count, 10),
-      totalReports: parseInt(totalReportsRows[0].count, 10),
-      reportsLast24h: parseInt(reportsLast24hRows[0].count, 10),
+    const onlineNow = getOnlineCount();
+    console.log("[Admin] onlineNow:", onlineNow);
+
+    const payload = {
+      totalUsers: parseInt(totalUsersRows[0]?.count || 0, 10),
+      onlineNow,
+      verifiedUsers: parseInt(verifiedUsersRows[0]?.count || 0, 10),
+      bannedUsers: parseInt(bannedUsersRows[0]?.count || 0, 10),
+      totalReports: parseInt(totalReportsRows[0]?.count || 0, 10),
+      reportsLast24h: parseInt(reportsLast24hRows[0]?.count || 0, 10),
       usersByCountry: usersByCountryRows.map((r) => ({
         country: r.country || "Inconnu",
         count: parseInt(r.count, 10),
       })),
       signupsLast7Days: signupsRows.map((r) => ({
-        date: r.date,
+        date: r.date && typeof r.date === "object" ? r.date.toISOString().slice(0, 10) : r.date,
         count: parseInt(r.count, 10),
       })),
-    });
+    };
+    console.log("[Admin] /api/admin/stats payload:", payload);
+    return res.json(payload);
   } catch (err) {
     console.error("[Admin] stats error:", err.message);
-    return res.status(500).json({ error: "Erreur serveur" });
+    console.error("[Admin] stats error stack:", err.stack);
+    return res.status(500).json({ error: "Erreur serveur", details: err.message });
   }
 });
 

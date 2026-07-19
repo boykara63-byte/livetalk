@@ -15,11 +15,15 @@ function adminFetch(path, options = {}) {
       Authorization: `Bearer ${token || ''}`,
       ...options.headers,
     },
-  }).then((res) => {
+  }).then(async (res) => {
     if (res.status === 401) {
       localStorage.removeItem(ADMIN_TOKEN_KEY)
       window.location.href = '/admin'
       throw new Error('Session expirée.')
+    }
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}))
+      throw new Error(data.error || data.details || `Erreur ${res.status}`)
     }
     return res
   })
@@ -58,6 +62,7 @@ function AdminDashboard() {
   const [activeTab, setActiveTab] = useState('overview')
   const [stats, setStats] = useState(null)
   const [statsLoading, setStatsLoading] = useState(true)
+  const [statsError, setStatsError] = useState(null)
 
   const [reports, setReports] = useState([])
   const [reportsMeta, setReportsMeta] = useState({ page: 1, totalPages: 1 })
@@ -79,10 +84,17 @@ function AdminDashboard() {
 
   const loadStats = useCallback(() => {
     setStatsLoading(true)
+    setStatsError(null)
     adminFetch('/api/admin/stats')
       .then((res) => res.json())
-      .then((data) => setStats(data))
-      .catch((err) => console.error('stats error:', err.message))
+      .then((data) => {
+        setStats(data)
+        console.log('[AdminDashboard] stats received:', data)
+      })
+      .catch((err) => {
+        console.error('stats error:', err.message)
+        setStatsError(err.message || 'Erreur lors du chargement des statistiques.')
+      })
       .finally(() => setStatsLoading(false))
   }, [])
 
@@ -171,6 +183,11 @@ function AdminDashboard() {
 
   const renderOverview = () => (
     <div className="admin-tab-content">
+      {statsError && (
+        <div className="admin-error-banner">
+          Erreur stats : {statsError}
+        </div>
+      )}
       <div className="admin-cards">
         <Card title="Utilisateurs" value={statsLoading ? '...' : stats?.totalUsers ?? 0} />
         <Card title="En ligne" value={statsLoading ? '...' : stats?.onlineNow ?? 0} />

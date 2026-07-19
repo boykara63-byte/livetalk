@@ -9,6 +9,14 @@ import './App.css'
 const DEVICE_ID_KEY = 'livetalk-device-id'
 const AGE_VERIFIED_KEY = 'livetalk-age-verified'
 
+const FILTERS = [
+  { key: 'none', label: 'Normal', filter: 'none' },
+  { key: 'bw', label: 'NB', filter: 'grayscale(100%)' },
+  { key: 'sepia', label: 'Sépia', filter: 'sepia(80%)' },
+  { key: 'vintage', label: 'Vintage', filter: 'contrast(1.1) saturate(1.3) sepia(30%)' },
+  { key: 'vivid', label: 'Vif', filter: 'saturate(1.5) contrast(1.1)' },
+]
+
 const ICE_SERVERS = [
   { urls: 'stun:stun.relay.metered.ca:80' },
   {
@@ -56,11 +64,18 @@ function App() {
   const pendingCandidatesRef = useRef([])
   const localVideoRef = useRef(null)
   const remoteVideoRef = useRef(null)
+  const canvasRef = useRef(null)
+  const canvasStreamRef = useRef(null)
+  const videoElementRef = useRef(null)
+  const rafIdRef = useRef(null)
+  const activeFilterRef = useRef('none')
 
   const [status, setStatus] = useState('Déconnecté')
   const [partnerId, setPartnerId] = useState(null)
   const [partnerDeviceId, setPartnerDeviceId] = useState(null)
+  const [partnerCountry, setPartnerCountry] = useState(null)
   const [messages, setMessages] = useState([])
+  const [rawStream, setRawStream] = useState(null)
   const [localStream, setLocalStream] = useState(null)
   const [mediaReady, setMediaReady] = useState(false)
   const [mediaError, setMediaError] = useState(null)
@@ -68,6 +83,7 @@ function App() {
   const [hasJoined, setHasJoined] = useState(false)
   const [isMicOn, setIsMicOn] = useState(true)
   const [isCameraOn, setIsCameraOn] = useState(true)
+  const [activeFilter, setActiveFilter] = useState('none')
   const [ageVerified, setAgeVerified] = useState(() => {
     try {
       return localStorage.getItem(AGE_VERIFIED_KEY) === 'true'
@@ -88,8 +104,8 @@ function App() {
     let stream = null
     const constraints = {
       video: {
-        width: { ideal: 480 },
-        height: { ideal: 360 },
+        width: { ideal: 640 },
+        height: { ideal: 480 },
         frameRate: { ideal: 24 },
       },
       audio: true,
@@ -101,10 +117,7 @@ function App() {
       .then((s) => {
         stream = s
         localStreamRef.current = s
-        setLocalStream(s)
-        if (localVideoRef.current) {
-          localVideoRef.current.srcObject = s
-        }
+        setRawStream(s)
         setMediaReady(true)
         console.log('[Media] getUserMedia success')
       })
@@ -117,6 +130,58 @@ function App() {
       stream?.getTracks().forEach((track) => track.stop())
     }
   }, [ageVerified])
+
+  useEffect(() => {
+    activeFilterRef.current = activeFilter
+  }, [activeFilter])
+
+  useEffect(() => {
+    if (!rawStream) return
+
+    const video = document.createElement('video')
+    video.srcObject = rawStream
+    video.autoplay = true
+    video.muted = true
+    video.playsInline = true
+    video.play().catch(() => {})
+    videoElementRef.current = video
+
+    const canvas = document.createElement('canvas')
+    canvas.width = 640
+    canvas.height = 480
+    canvasRef.current = canvas
+    const ctx = canvas.getContext('2d')
+    const canvasStream = canvas.captureStream(24)
+    canvasStreamRef.current = canvasStream
+
+    let rafId
+    const draw = () => {
+      if (video.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA) {
+        const filter = FILTERS.find((f) => f.key === activeFilterRef.current)?.filter || 'none'
+        ctx.filter = filter === 'none' ? 'none' : filter
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height)
+      }
+      rafId = requestAnimationFrame(draw)
+      rafIdRef.current = rafId
+    }
+    draw()
+
+    const combinedStream = new MediaStream([
+      ...canvasStream.getVideoTracks(),
+      ...rawStream.getAudioTracks(),
+    ])
+    setLocalStream(combinedStream)
+
+    return () => {
+      cancelAnimationFrame(rafId)
+      video.pause()
+      video.srcObject = null
+      canvasStream.getTracks().forEach((track) => track.stop())
+      canvasStreamRef.current = null
+      canvasRef.current = null
+      rafIdRef.current = null
+    }
+  }, [rawStream])
 
   const closePeerConnection = () => {
     pendingCandidatesRef.current = []
@@ -150,11 +215,19 @@ function App() {
       const pc = new RTCPeerConnection({ iceServers: ICE_SERVERS })
       peerConnectionRef.current = pc
 
-      if (localStreamRef.current) {
-        localStreamRef.current.getTracks().forEach((track) => {
-          pc.addTrack(track, localStreamRef.current)
-        })
+      const sendTracks = []
+      if (canvasStreamRef.current) {
+        sendTracks.push(...canvasStreamRef.current.getVideoTracks())
+      } else if (localStreamRef.current) {
+        sendTracks.push(...localStreamRef.current.getVideoTracks())
       }
+      if (localStreamRef.current) {
+        sendTracks.push(...localStreamRef.current.getAudioTracks())
+      }
+      const sendStream = new MediaStream(sendTracks)
+      sendStream.getTracks().forEach((track) => {
+        pc.addTrack(track, sendStream)
+      })
 
       pc.ontrack = (event) => {
         console.log('[WebRTC] remote track received', event.streams)
@@ -215,10 +288,11 @@ function App() {
       }
     })
 
-    socket.on('matched', async ({ partnerId, partnerDeviceId, initiator }) => {
-      console.log('[Socket] matched', { partnerId, partnerDeviceId, initiator })
+    socket.on('matched', async ({ partnerId, partnerDeviceId, partnerCountry, initiator }) => {
+      console.log('[Socket] matched', { partnerId, partnerDeviceId, partnerCountry, initiator })
       setPartnerId(partnerId)
       setPartnerDeviceId(partnerDeviceId)
+      setPartnerCountry(partnerCountry || null)
       setStatus('Connecté à un partenaire')
 
       const pc = createPeerConnection()
@@ -238,6 +312,7 @@ function App() {
       console.log('[Socket] partner-left')
       setPartnerId(null)
       setPartnerDeviceId(null)
+      setPartnerCountry(null)
       closePeerConnection()
       setStatus('Partenaire parti')
       setTimeout(() => {
@@ -335,6 +410,7 @@ function App() {
     setStatus('En attente...')
     setPartnerId(null)
     setPartnerDeviceId(null)
+    setPartnerCountry(null)
   }
 
   const toggleMic = () => {
@@ -381,6 +457,10 @@ function App() {
     setMessages((prev) => [...prev, { text: trimmed, self: true }])
   }
 
+  const handleSelectFilter = (key) => {
+    setActiveFilter(key)
+  }
+
   return (
     <div className="app">
       <main className="app-main">
@@ -413,6 +493,9 @@ function App() {
                 messages={messages}
                 onSendMessage={sendMessage}
                 onlineCount={onlineCount}
+                partnerCountry={partnerCountry}
+                activeFilter={activeFilter}
+                onSelectFilter={handleSelectFilter}
               />
             )}
           </>

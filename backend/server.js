@@ -45,7 +45,7 @@ function calculateAge(birthDate) {
   return age;
 }
 
-function tryMatch() {
+async function tryMatch() {
   console.log(`[Match] tryMatch called, queue size: ${queue.length}`);
   while (queue.length >= 2) {
     const first = queue.shift();
@@ -63,16 +63,35 @@ function tryMatch() {
     activePairDevices.set(first.id, second.data.deviceId);
     activePairDevices.set(second.id, first.data.deviceId);
 
+    let firstCountry = null;
+    let secondCountry = null;
+    try {
+      const { rows: firstRows } = await pool.query(
+        `SELECT country FROM users WHERE device_id = $1`,
+        [first.data.deviceId]
+      );
+      const { rows: secondRows } = await pool.query(
+        `SELECT country FROM users WHERE device_id = $1`,
+        [second.data.deviceId]
+      );
+      firstCountry = firstRows[0]?.country || null;
+      secondCountry = secondRows[0]?.country || null;
+    } catch (err) {
+      console.error('[Match] error fetching countries:', err.message);
+    }
+
     console.log(`[Match] paired ${first.id} <-> ${second.id}`);
 
     first.emit("matched", {
       partnerId: second.id,
       partnerDeviceId: second.data.deviceId,
+      partnerCountry: secondCountry,
       initiator: true,
     });
     second.emit("matched", {
       partnerId: first.id,
       partnerDeviceId: first.data.deviceId,
+      partnerCountry: firstCountry,
       initiator: false,
     });
   }
@@ -104,7 +123,7 @@ function removeFromQueue(socket) {
 }
 
 app.post("/api/verify-age", async (req, res) => {
-  const { deviceId, birthDate } = req.body;
+  const { deviceId, birthDate, country } = req.body;
   if (!deviceId || !birthDate) {
     return res.status(400).json({ error: "deviceId and birthDate are required" });
   }
@@ -115,10 +134,10 @@ app.post("/api/verify-age", async (req, res) => {
   if (age < 18) {
     try {
       await pool.query(
-        `INSERT INTO users (device_id, birth_date, age_verified)
-         VALUES ($1, $2, FALSE)
-         ON CONFLICT (device_id) DO UPDATE SET birth_date = $2, age_verified = FALSE`,
-        [deviceId, birthDate]
+        `INSERT INTO users (device_id, birth_date, age_verified, country)
+         VALUES ($1, $2, FALSE, $3)
+         ON CONFLICT (device_id) DO UPDATE SET birth_date = $2, age_verified = FALSE, country = COALESCE($3, users.country)`,
+        [deviceId, birthDate, country || null]
       );
     } catch (err) {
       console.error("verify-age insert error:", err.message);
@@ -128,10 +147,10 @@ app.post("/api/verify-age", async (req, res) => {
 
   try {
     await pool.query(
-      `INSERT INTO users (device_id, birth_date, age_verified)
-       VALUES ($1, $2, TRUE)
-       ON CONFLICT (device_id) DO UPDATE SET birth_date = $2, age_verified = TRUE`,
-      [deviceId, birthDate]
+      `INSERT INTO users (device_id, birth_date, age_verified, country)
+       VALUES ($1, $2, TRUE, $3)
+       ON CONFLICT (device_id) DO UPDATE SET birth_date = $2, age_verified = TRUE, country = COALESCE($3, users.country)`,
+      [deviceId, birthDate, country || null]
     );
     return res.json({ success: true });
   } catch (err) {

@@ -329,18 +329,69 @@
   z-index: 2;
 }
 
+.filter-row {
+  position: absolute;
+  bottom: 12px;
+  left: 12px;
+  z-index: 4;
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  max-width: 70%;
+}
+
+.filter-button {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: 2px solid transparent;
+  background: rgba(26, 19, 48, 0.7);
+  color: var(--color-white);
+  font-size: 10px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: transform var(--transition), border-color var(--transition), background var(--transition);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  line-height: 1.1;
+  padding: 2px;
+}
+
+.filter-button:hover:not(:disabled) {
+  transform: scale(1.08);
+}
+
+.filter-button.active {
+  border-color: var(--color-accent);
+  background: rgba(26, 19, 48, 0.9);
+}
+
+.partner-country-badge,
 .status-badge {
   position: absolute;
-  top: 12px;
-  left: 12px;
   z-index: 3;
   padding: 6px 12px;
   border-radius: var(--radius-pill);
   font-size: 12px;
   font-weight: 600;
+  backdrop-filter: blur(4px);
+}
+
+.partner-country-badge {
+  top: 12px;
+  left: 12px;
   background: rgba(26, 19, 48, 0.7);
   color: var(--color-white);
-  backdrop-filter: blur(4px);
+}
+
+.status-badge {
+  top: 12px;
+  right: 12px;
+  background: rgba(26, 19, 48, 0.7);
+  color: var(--color-white);
 }
 
 .status-badge.connected {
@@ -601,5 +652,76 @@
   .logo--large .logo-icon {
     width: 60px;
     height: 60px;
+  }
+}
+
+@media (min-width: 1024px) {
+  .screen-gradient {
+    padding: 40px;
+  }
+
+  .start-content,
+  .age-gate-content {
+    width: 420px;
+    max-width: 420px;
+    padding: 40px;
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-card);
+    backdrop-filter: blur(8px);
+  }
+
+  .video-call-screen {
+    display: grid;
+    grid-template-columns: 1fr 360px;
+    grid-template-rows: auto 1fr auto;
+    grid-template-areas:
+      "header header"
+      "video chat"
+      "controls chat";
+    gap: 20px;
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 24px;
+    min-height: 100vh;
+    align-items: stretch;
+  }
+
+  .video-call-header {
+    grid-area: header;
+  }
+
+  .video-stage {
+    grid-area: video;
+    aspect-ratio: 16 / 9;
+    min-height: 0;
+  }
+
+  .controls-row {
+    grid-area: controls;
+  }
+
+  .chat-section {
+    grid-area: chat;
+    min-height: 0;
+    height: 100%;
+    max-height: none;
+  }
+
+  .chat-messages {
+    flex: 1;
+    min-height: 0;
+    max-height: none;
+  }
+
+  .local-video {
+    width: 22%;
+    max-width: 180px;
+  }
+
+  .filter-button {
+    width: 44px;
+    height: 44px;
+    font-size: 11px;
   }
 }

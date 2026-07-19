@@ -272,67 +272,76 @@ app.post("/api/admin/login", loginLimiter, async (req, res) => {
   }
 });
 
+async function safeCount(sql, label, params = []) {
+  try {
+    const { rows } = await pool.query(sql, params);
+    console.log(`[Admin] ${label} raw:`, rows);
+    return parseInt(rows[0]?.count || 0, 10);
+  } catch (err) {
+    console.error(`[Admin] ${label} query failed:`, err.message);
+    return 0;
+  }
+}
+
+async function safeQuery(sql, label, params = []) {
+  try {
+    const { rows } = await pool.query(sql, params);
+    console.log(`[Admin] ${label} raw:`, rows);
+    return rows;
+  } catch (err) {
+    console.error(`[Admin] ${label} query failed:`, err.message);
+    return [];
+  }
+}
+
 app.get("/api/admin/stats", requireAdmin, async (req, res) => {
   console.log("[Admin] /api/admin/stats called by admin");
-  try {
-    const { rows: totalUsersRows } = await pool.query(`SELECT COUNT(*) FROM users`);
-    console.log("[Admin] totalUsers raw:", totalUsersRows);
-    const { rows: verifiedUsersRows } = await pool.query(
-      `SELECT COUNT(*) FROM users WHERE age_verified = TRUE`
-    );
-    console.log("[Admin] verifiedUsers raw:", verifiedUsersRows);
-    const { rows: bannedUsersRows } = await pool.query(
-      `SELECT COUNT(*) FROM users WHERE is_banned = TRUE`
-    );
-    console.log("[Admin] bannedUsers raw:", bannedUsersRows);
-    const { rows: totalReportsRows } = await pool.query(`SELECT COUNT(*) FROM reports`);
-    console.log("[Admin] totalReports raw:", totalReportsRows);
-    const { rows: reportsLast24hRows } = await pool.query(
-      `SELECT COUNT(*) FROM reports WHERE created_at > NOW() - INTERVAL '24 hours'`
-    );
-    console.log("[Admin] reportsLast24h raw:", reportsLast24hRows);
-    const { rows: usersByCountryRows } = await pool.query(
-      `SELECT country, COUNT(*) AS count
-       FROM users
-       GROUP BY country
-       ORDER BY count DESC`
-    );
-    console.log("[Admin] usersByCountry raw:", usersByCountryRows);
-    const { rows: signupsRows } = await pool.query(
-      `SELECT DATE(created_at) AS date, COUNT(*) AS count
-       FROM users
-       WHERE created_at >= NOW() - INTERVAL '7 days'
-       GROUP BY DATE(created_at)
-       ORDER BY date ASC`
-    );
-    console.log("[Admin] signupsLast7Days raw:", signupsRows);
 
-    const onlineNow = getOnlineCount();
-    console.log("[Admin] onlineNow:", onlineNow);
+  const totalUsers = await safeCount(`SELECT COUNT(*) FROM users`, "totalUsers");
+  const verifiedUsers = await safeCount(`SELECT COUNT(*) FROM users WHERE age_verified = TRUE`, "verifiedUsers");
+  const bannedUsers = await safeCount(`SELECT COUNT(*) FROM users WHERE is_banned = TRUE`, "bannedUsers");
+  const totalReports = await safeCount(`SELECT COUNT(*) FROM reports`, "totalReports");
+  const reportsLast24h = await safeCount(
+    `SELECT COUNT(*) FROM reports WHERE created_at > NOW() - INTERVAL '24 hours'`,
+    "reportsLast24h"
+  );
+  const usersByCountryRows = await safeQuery(
+    `SELECT country, COUNT(*) AS count
+     FROM users
+     GROUP BY country
+     ORDER BY count DESC`,
+    "usersByCountry"
+  );
+  const signupsRows = await safeQuery(
+    `SELECT DATE(created_at) AS date, COUNT(*) AS count
+     FROM users
+     WHERE created_at >= NOW() - INTERVAL '7 days'
+     GROUP BY DATE(created_at)
+     ORDER BY date ASC`,
+    "signupsLast7Days"
+  );
 
-    const payload = {
-      totalUsers: parseInt(totalUsersRows[0]?.count || 0, 10),
-      onlineNow,
-      verifiedUsers: parseInt(verifiedUsersRows[0]?.count || 0, 10),
-      bannedUsers: parseInt(bannedUsersRows[0]?.count || 0, 10),
-      totalReports: parseInt(totalReportsRows[0]?.count || 0, 10),
-      reportsLast24h: parseInt(reportsLast24hRows[0]?.count || 0, 10),
-      usersByCountry: usersByCountryRows.map((r) => ({
-        country: r.country || "Inconnu",
-        count: parseInt(r.count, 10),
-      })),
-      signupsLast7Days: signupsRows.map((r) => ({
-        date: r.date && typeof r.date === "object" ? r.date.toISOString().slice(0, 10) : r.date,
-        count: parseInt(r.count, 10),
-      })),
-    };
-    console.log("[Admin] /api/admin/stats payload:", payload);
-    return res.json(payload);
-  } catch (err) {
-    console.error("[Admin] stats error:", err.message);
-    console.error("[Admin] stats error stack:", err.stack);
-    return res.status(500).json({ error: "Erreur serveur", details: err.message });
-  }
+  const onlineNow = getOnlineCount();
+  console.log("[Admin] onlineNow:", onlineNow);
+
+  const payload = {
+    totalUsers,
+    onlineNow,
+    verifiedUsers,
+    bannedUsers,
+    totalReports,
+    reportsLast24h,
+    usersByCountry: usersByCountryRows.map((r) => ({
+      country: r.country || "Inconnu",
+      count: parseInt(r.count, 10),
+    })),
+    signupsLast7Days: signupsRows.map((r) => ({
+      date: r.date && typeof r.date === "object" ? r.date.toISOString().slice(0, 10) : r.date,
+      count: parseInt(r.count, 10),
+    })),
+  };
+  console.log("[Admin] /api/admin/stats payload:", payload);
+  return res.json(payload);
 });
 
 app.get("/api/admin/reports", requireAdmin, async (req, res) => {

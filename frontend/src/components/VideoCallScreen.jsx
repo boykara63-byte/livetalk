@@ -28,11 +28,6 @@ function VideoCallScreen({
   onlineCount,
   partnerCountry,
   partnerNickname,
-  activeEffect,
-  effects,
-  onSelectEffect,
-  faceEffectsReady,
-  faceEffectsError,
 }) {
   const messagesEndRef = useRef(null)
   const [message, setMessage] = useState('')
@@ -74,8 +69,6 @@ function VideoCallScreen({
   }
 
   const countryLabel = formatCountry(partnerCountry)
-
-  const effectKeys = effects ? Object.keys(effects) : []
 
   return (
     <div className="video-call-screen">
@@ -127,31 +120,6 @@ function VideoCallScreen({
           muted
           className="local-video"
         />
-
-        <div className="filter-row">
-          {faceEffectsError && (
-            <span className="filter-error" title="Effets non disponibles">
-              Effets indisponibles
-            </span>
-          )}
-          {effectKeys.map((key) => {
-            const effect = effects[key]
-            return (
-              <button
-                key={key}
-                type="button"
-                className={`filter-button ${activeEffect === key ? 'active' : ''}`}
-                onClick={() => onSelectEffect(key)}
-                aria-label={`Effet ${effect.label}`}
-                title={effect.label}
-                disabled={!faceEffectsReady || faceEffectsError}
-              >
-                <span aria-hidden="true">{effect.icon}</span>
-                {effect.label}
-              </button>
-            )
-          })}
-        </div>
       </div>
 
       <div className="controls-row">

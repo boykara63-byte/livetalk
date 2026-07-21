@@ -3,7 +3,6 @@ import { io } from 'socket.io-client'
 import AgeGateScreen from './components/AgeGateScreen'
 import StartScreen from './components/StartScreen'
 import VideoCallScreen from './components/VideoCallScreen'
-import { EFFECTS, loadFaceLandmarker, drawEffect } from './effects/faceEffects'
 import './theme.css'
 import './App.css'
 
@@ -57,15 +56,6 @@ function App() {
   const pendingCandidatesRef = useRef([])
   const localVideoRef = useRef(null)
   const remoteVideoRef = useRef(null)
-  const canvasRef = useRef(null)
-  const canvasStreamRef = useRef(null)
-  const videoElementRef = useRef(null)
-  const rafIdRef = useRef(null)
-  const faceLandmarkerRef = useRef(null)
-  const faceLandmarkResultRef = useRef(null)
-  const lastDetectionTimeRef = useRef(0)
-  const videoSenderRef = useRef(null)
-  const activeEffectRef = useRef('none')
 
   const [status, setStatus] = useState('Déconnecté')
   const [partnerId, setPartnerId] = useState(null)
@@ -73,7 +63,6 @@ function App() {
   const [partnerCountry, setPartnerCountry] = useState(null)
   const [partnerNickname, setPartnerNickname] = useState(null)
   const [messages, setMessages] = useState([])
-  const [rawStream, setRawStream] = useState(null)
   const [localStream, setLocalStream] = useState(null)
   const [mediaReady, setMediaReady] = useState(false)
   const [mediaError, setMediaError] = useState(null)
@@ -81,9 +70,6 @@ function App() {
   const [hasJoined, setHasJoined] = useState(false)
   const [isMicOn, setIsMicOn] = useState(true)
   const [isCameraOn, setIsCameraOn] = useState(true)
-  const [activeEffect, setActiveEffect] = useState('none')
-  const [faceEffectsReady, setFaceEffectsReady] = useState(false)
-  const [faceEffectsError, setFaceEffectsError] = useState(false)
   const [ageVerified, setAgeVerified] = useState(() => {
     try {
       return localStorage.getItem(AGE_VERIFIED_KEY) === 'true'
@@ -117,7 +103,7 @@ function App() {
       .then((s) => {
         stream = s
         localStreamRef.current = s
-        setRawStream(s)
+        setLocalStream(s)
         setMediaReady(true)
         console.log('[Media] getUserMedia success')
       })
@@ -131,109 +117,8 @@ function App() {
     }
   }, [ageVerified])
 
-  useEffect(() => {
-    activeEffectRef.current = activeEffect
-  }, [activeEffect])
-
-  const replaceVideoTrack = (track) => {
-    if (!peerConnectionRef.current || !track) return
-    const sender = peerConnectionRef.current.getSenders().find((s) => s.track?.kind === 'video')
-    if (sender) {
-      sender.replaceTrack(track).catch((err) => {
-        console.error('[WebRTC] replaceTrack failed:', err)
-      })
-    }
-  }
-
-  useEffect(() => {
-    if (!rawStream) return
-
-    let cancelled = false
-
-    const video = document.createElement('video')
-    video.srcObject = rawStream
-    video.autoplay = true
-    video.muted = true
-    video.playsInline = true
-    video.play().catch(() => {})
-    videoElementRef.current = video
-
-    const canvas = document.createElement('canvas')
-    canvas.width = 640
-    canvas.height = 480
-    canvasRef.current = canvas
-    const ctx = canvas.getContext('2d')
-    const canvasStream = canvas.captureStream(24)
-    canvasStreamRef.current = canvasStream
-
-    const combinedStream = new MediaStream([
-      ...canvasStream.getVideoTracks(),
-      ...rawStream.getAudioTracks(),
-    ])
-    setLocalStream(combinedStream)
-
-    loadFaceLandmarker()
-      .then((fl) => {
-        if (cancelled) return
-        faceLandmarkerRef.current = fl
-        setFaceEffectsReady(true)
-        console.log('[FaceEffects] FaceLandmarker loaded')
-      })
-      .catch((err) => {
-        console.error('[FaceEffects] Could not load FaceLandmarker:', err)
-        setFaceEffectsError(true)
-      })
-
-    const DETECTION_INTERVAL_MS = 66 // ~15 FPS
-
-    let rafId
-    const draw = () => {
-      if (video.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA) {
-        ctx.filter = 'none'
-        ctx.drawImage(video, 0, 0, canvas.width, canvas.height)
-
-        const fl = faceLandmarkerRef.current
-        const now = performance.now()
-        if (fl && now - lastDetectionTimeRef.current >= DETECTION_INTERVAL_MS) {
-          try {
-            const result = fl.detectForVideo(video, now)
-            faceLandmarkResultRef.current = result
-            lastDetectionTimeRef.current = now
-          } catch (err) {
-            console.error('[FaceEffects] detection error:', err)
-          }
-        }
-
-        const result = faceLandmarkResultRef.current
-        const landmarks = result?.faceLandmarks?.[0]
-        if (landmarks) {
-          drawEffect(ctx, landmarks, activeEffectRef.current, canvas.width, canvas.height)
-        }
-      }
-      rafId = requestAnimationFrame(draw)
-      rafIdRef.current = rafId
-    }
-    draw()
-
-    replaceVideoTrack(canvasStream.getVideoTracks()[0])
-
-    return () => {
-      cancelled = true
-      cancelAnimationFrame(rafId)
-      video.pause()
-      video.srcObject = null
-      canvasStream.getTracks().forEach((track) => track.stop())
-      canvasStreamRef.current = null
-      canvasRef.current = null
-      rafIdRef.current = null
-      faceLandmarkerRef.current = null
-      faceLandmarkResultRef.current = null
-    }
-  }, [rawStream])
-
   const closePeerConnection = () => {
     pendingCandidatesRef.current = []
-    videoSenderRef.current = null
     if (peerConnectionRef.current) {
       peerConnectionRef.current.close()
       peerConnectionRef.current = null
@@ -265,27 +150,14 @@ function App() {
       peerConnectionRef.current = pc
 
       const sendTracks = []
-      if (canvasStreamRef.current) {
-        sendTracks.push(...canvasStreamRef.current.getVideoTracks())
-      } else if (localStreamRef.current) {
-        sendTracks.push(...localStreamRef.current.getVideoTracks())
-      }
       if (localStreamRef.current) {
+        sendTracks.push(...localStreamRef.current.getVideoTracks())
         sendTracks.push(...localStreamRef.current.getAudioTracks())
       }
       const sendStream = new MediaStream(sendTracks)
       sendStream.getTracks().forEach((track) => {
         pc.addTrack(track, sendStream)
       })
-
-      const videoSender = pc.getSenders().find((s) => s.track?.kind === 'video')
-      if (videoSender) {
-        videoSenderRef.current = videoSender
-        const canvasTrack = canvasStreamRef.current?.getVideoTracks()[0]
-        if (canvasTrack) {
-          videoSender.replaceTrack(canvasTrack).catch((err) => console.error('[WebRTC] replaceTrack error:', err))
-        }
-      }
 
       pc.ontrack = (event) => {
         console.log('[WebRTC] remote track received', event.streams)
@@ -518,10 +390,6 @@ function App() {
     setMessages((prev) => [...prev, { text: trimmed, self: true }])
   }
 
-  const handleSelectEffect = (key) => {
-    setActiveEffect(key)
-  }
-
   return (
     <div className="app">
       <main className="app-main">
@@ -556,11 +424,6 @@ function App() {
                 onlineCount={onlineCount}
                 partnerCountry={partnerCountry}
                 partnerNickname={partnerNickname}
-                activeEffect={activeEffect}
-                effects={EFFECTS}
-                onSelectEffect={handleSelectEffect}
-                faceEffectsReady={faceEffectsReady}
-                faceEffectsError={faceEffectsError}
               />
             )}
           </>

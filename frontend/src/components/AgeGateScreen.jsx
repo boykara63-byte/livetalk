@@ -134,14 +134,14 @@ function AgeGateScreen({ socketUrl, deviceId, onVerified }) {
             <optgroup label="Afrique de l'Ouest">
               {WEST_AFRICAN_COUNTRIES.map((c) => (
                 <option key={c.code} value={c.code}>
-                  {c.name}
+                  {c.flag} {c.name}
                 </option>
               ))}
             </optgroup>
             <optgroup label="Autres pays">
               {OTHER_COUNTRIES.map((c) => (
                 <option key={c.code} value={c.code}>
-                  {c.name}
+                  {c.flag} {c.name}
                 </option>
               ))}
             </optgroup>

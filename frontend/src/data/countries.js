@@ -1,32 +1,32 @@
 export const COUNTRIES = [
-  { code: 'TG', name: 'Togo' },
-  { code: 'CI', name: "Côte d'Ivoire" },
-  { code: 'SN', name: 'Sénégal' },
-  { code: 'BJ', name: 'Bénin' },
-  { code: 'BF', name: 'Burkina Faso' },
-  { code: 'ML', name: 'Mali' },
-  { code: 'NE', name: 'Niger' },
-  { code: 'GN', name: 'Guinée' },
-  { code: 'FR', name: 'France' },
-  { code: 'BE', name: 'Belgique' },
-  { code: 'CA', name: 'Canada' },
-  { code: 'CH', name: 'Suisse' },
-  { code: 'DE', name: 'Allemagne' },
-  { code: 'US', name: 'États-Unis' },
-  { code: 'GB', name: 'Royaume-Uni' },
-  { code: 'OTHER', name: 'Autre pays' },
+  { code: 'TG', name: 'Togo', flag: '🇹🇬' },
+  { code: 'CI', name: "Côte d'Ivoire", flag: '🇨🇮' },
+  { code: 'SN', name: 'Sénégal', flag: '🇸🇳' },
+  { code: 'BJ', name: 'Bénin', flag: '🇧🇯' },
+  { code: 'BF', name: 'Burkina Faso', flag: '🇧🇫' },
+  { code: 'ML', name: 'Mali', flag: '🇲🇱' },
+  { code: 'NE', name: 'Niger', flag: '🇳🇪' },
+  { code: 'GN', name: 'Guinée', flag: '🇬🇳' },
+  { code: 'FR', name: 'France', flag: '🇫🇷' },
+  { code: 'BE', name: 'Belgique', flag: '🇧🇪' },
+  { code: 'CA', name: 'Canada', flag: '🇨🇦' },
+  { code: 'CH', name: 'Suisse', flag: '🇨🇭' },
+  { code: 'DE', name: 'Allemagne', flag: '🇩🇪' },
+  { code: 'US', name: 'États-Unis', flag: '🇺🇸' },
+  { code: 'GB', name: 'Royaume-Uni', flag: '🇬🇧' },
+  { code: 'OTHER', name: 'Autre pays', flag: '🌍' },
 ]
 
 export function getCountryByCode(code) {
   if (!code) return null
   const found = COUNTRIES.find((c) => c.code === code)
   if (found) return found
-  if (code === 'OTHER') return { code: 'OTHER', name: 'Autre pays' }
+  if (code === 'OTHER') return { code: 'OTHER', name: 'Autre pays', flag: '🌍' }
   return null
 }
 
 export function formatCountry(code) {
   const country = getCountryByCode(code)
   if (!country) return 'Inconnu'
-  return country.name
+  return `${country.flag} ${country.name}`
 }

@@ -53,7 +53,7 @@ function AdminLogin() {
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             disabled={loading}
-            placeholder="••••••••"
+            placeholder="Mot de passe"
           />
           {error && <p className="admin-login-error">{error}</p>}
           <button

@@ -12,10 +12,10 @@ const FOREHEAD_TOP = 10
 
 export const EFFECTS = {
   none: { key: 'none', label: 'Aucun', icon: '' },
-  ears: { key: 'ears', label: 'Oreilles', icon: '🐱' },
-  glasses: { key: 'glasses', label: 'Lunettes', icon: '😎' },
-  hat: { key: 'hat', label: 'Chapeau', icon: '🎩' },
-  mustache: { key: 'mustache', label: 'Moustache', icon: '👨' },
+  ears: { key: 'ears', label: 'Oreilles', icon: '' },
+  glasses: { key: 'glasses', label: 'Lunettes', icon: '' },
+  hat: { key: 'hat', label: 'Chapeau', icon: '' },
+  mustache: { key: 'mustache', label: 'Moustache', icon: '' },
 }
 
 export async function loadFaceLandmarker() {

@@ -333,7 +333,7 @@ function AdminDashboard() {
           <option value="">Tous les pays</option>
           {COUNTRIES.map((c) => (
             <option key={c.code} value={c.code}>
-              {c.flag} {c.name}
+              {c.name}
             </option>
           ))}
         </select>

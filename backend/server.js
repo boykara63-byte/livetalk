@@ -89,19 +89,23 @@ async function tryMatch() {
 
     let firstCountry = null;
     let secondCountry = null;
+    let firstNickname = null;
+    let secondNickname = null;
     try {
       const { rows: firstRows } = await pool.query(
-        `SELECT country FROM users WHERE device_id = $1`,
+        `SELECT country, nickname FROM users WHERE device_id = $1`,
         [first.data.deviceId]
       );
       const { rows: secondRows } = await pool.query(
-        `SELECT country FROM users WHERE device_id = $1`,
+        `SELECT country, nickname FROM users WHERE device_id = $1`,
         [second.data.deviceId]
       );
       firstCountry = firstRows[0]?.country || null;
       secondCountry = secondRows[0]?.country || null;
+      firstNickname = firstRows[0]?.nickname || null;
+      secondNickname = secondRows[0]?.nickname || null;
     } catch (err) {
-      console.error('[Match] error fetching countries:', err.message);
+      console.error('[Match] error fetching user info:', err.message);
     }
 
     console.log(`[Match] paired ${first.id} <-> ${second.id}`);
@@ -110,12 +114,14 @@ async function tryMatch() {
       partnerId: second.id,
       partnerDeviceId: second.data.deviceId,
       partnerCountry: secondCountry,
+      partnerNickname: secondNickname,
       initiator: true,
     });
     second.emit("matched", {
       partnerId: first.id,
       partnerDeviceId: first.data.deviceId,
       partnerCountry: firstCountry,
+      partnerNickname: firstNickname,
       initiator: false,
     });
   }
@@ -175,39 +181,46 @@ function requireAdmin(req, res, next) {
 }
 
 app.post("/api/verify-age", async (req, res) => {
-  const { deviceId, birthDate, country } = req.body;
+  const { deviceId, birthDate, country, nickname } = req.body;
   if (!deviceId || !birthDate) {
-    return res.status(400).json({ error: "deviceId and birthDate are required" });
+    return res.status(400).json({ error: "L'identifiant et la date de naissance sont requis." });
   }
 
   const birth = new Date(birthDate);
+  if (isNaN(birth.getTime())) {
+    return res.status(400).json({ error: "Date de naissance invalide." });
+  }
+
   const age = calculateAge(birth);
+
+  const safeNickname = nickname && typeof nickname === "string" ? nickname.trim().slice(0, 30) : null;
 
   if (age < 18) {
     try {
       await pool.query(
-        `INSERT INTO users (device_id, birth_date, age_verified, country)
-         VALUES ($1, $2, FALSE, $3)
-         ON CONFLICT (device_id) DO UPDATE SET birth_date = $2, age_verified = FALSE, country = COALESCE($3, users.country)`,
-        [deviceId, birthDate, country || null]
+        `INSERT INTO users (device_id, birth_date, age_verified, country, nickname)
+         VALUES ($1, $2, FALSE, $3, $4)
+         ON CONFLICT (device_id) DO UPDATE SET birth_date = $2, age_verified = FALSE, country = COALESCE($3, users.country), nickname = COALESCE($4, users.nickname)`,
+        [deviceId, birthDate, country || null, safeNickname]
       );
     } catch (err) {
       console.error("verify-age insert error:", err.message);
+      return res.status(500).json({ error: "Service temporairement indisponible. R\u00e9essaie dans quelques instants." });
     }
     return res.status(403).json({ error: "Vous devez avoir 18 ans ou plus pour utiliser ce service." });
   }
 
   try {
     await pool.query(
-      `INSERT INTO users (device_id, birth_date, age_verified, country)
-       VALUES ($1, $2, TRUE, $3)
-       ON CONFLICT (device_id) DO UPDATE SET birth_date = $2, age_verified = TRUE, country = COALESCE($3, users.country)`,
-      [deviceId, birthDate, country || null]
+      `INSERT INTO users (device_id, birth_date, age_verified, country, nickname)
+       VALUES ($1, $2, TRUE, $3, $4)
+       ON CONFLICT (device_id) DO UPDATE SET birth_date = $2, age_verified = TRUE, country = COALESCE($3, users.country), nickname = COALESCE($4, users.nickname)`,
+      [deviceId, birthDate, country || null, safeNickname]
     );
     return res.json({ success: true });
   } catch (err) {
     console.error("verify-age error:", err.message);
-    return res.status(500).json({ error: "Erreur serveur" });
+    return res.status(500).json({ error: "Service temporairement indisponible. R\u00e9essaie dans quelques instants." });
   }
 });
 
@@ -403,7 +416,7 @@ app.get("/api/admin/users", requireAdmin, async (req, res) => {
 
   try {
     const { rows } = await pool.query(
-      `SELECT id, device_id, birth_date, age_verified, country, is_banned, ban_reason, created_at
+      `SELECT id, device_id, birth_date, age_verified, country, nickname, is_banned, ban_reason, created_at
        FROM users
        ${whereClause}
        ORDER BY created_at DESC

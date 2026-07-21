@@ -27,6 +27,7 @@ function VideoCallScreen({
   onSendMessage,
   onlineCount,
   partnerCountry,
+  partnerNickname,
   activeEffect,
   effects,
   onSelectEffect,
@@ -87,8 +88,15 @@ function VideoCallScreen({
       </header>
 
       <div className="video-stage">
-        <div className="partner-country-badge" aria-label="Pays du partenaire">
-          {countryLabel}
+        <div className="partner-info-badges" aria-label="Infos du partenaire">
+          <div className="partner-country-badge" aria-label="Pays du partenaire">
+            {countryLabel}
+          </div>
+          {connected && partnerNickname && (
+            <div className="partner-nickname-badge" aria-label="Pseudo du partenaire">
+              {partnerNickname}
+            </div>
+          )}
         </div>
 
         {statusText && (

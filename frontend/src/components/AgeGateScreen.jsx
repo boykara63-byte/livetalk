@@ -27,12 +27,18 @@ function AgeGateScreen({ socketUrl, deviceId, onVerified }) {
 
   const [birthYear, setBirthYear] = useState('')
   const [country, setCountry] = useState('')
+  const [nickname, setNickname] = useState('')
   const [error, setError] = useState(null)
   const [loading, setLoading] = useState(false)
 
   const handleSubmit = async (e) => {
     e.preventDefault()
+    const trimmedNickname = nickname.trim().slice(0, 30)
     if (!birthYear || !country) return
+    if (!trimmedNickname) {
+      setError('Choisis un pseudo pour continuer.')
+      return
+    }
 
     const year = Number(birthYear)
     const age = currentYear - year
@@ -48,19 +54,20 @@ function AgeGateScreen({ socketUrl, deviceId, onVerified }) {
       const res = await fetch(`${socketUrl}/api/verify-age`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ deviceId, birthDate, country }),
+        body: JSON.stringify({ deviceId, birthDate, country, nickname: trimmedNickname }),
       })
       const data = await res.json()
       if (res.ok) {
         try {
           localStorage.setItem('livetalk-country', country)
+          localStorage.setItem('livetalk-nickname', trimmedNickname)
         } catch {}
         onVerified()
       } else {
-        setError(data.error || 'Erreur lors de la vérification.')
+        setError(data.error || 'Impossible de valider tes informations. R\u00e9essaie.')
       }
     } catch {
-      setError('Erreur réseau. Veuillez réessayer.')
+      setError('Connexion au serveur impossible. V\u00e9rifie ta connexion et r\u00e9essaie.')
     } finally {
       setLoading(false)
     }
@@ -74,6 +81,21 @@ function AgeGateScreen({ socketUrl, deviceId, onVerified }) {
         <h1 className="age-gate-title">Confirme ton âge</h1>
 
         <form className="age-gate-form" onSubmit={handleSubmit}>
+          <label htmlFor="nickname" className="age-gate-label">
+            Pseudo
+          </label>
+          <input
+            id="nickname"
+            type="text"
+            className="age-gate-input"
+            value={nickname}
+            onChange={(e) => setNickname(e.target.value)}
+            placeholder="Ton pseudo (3-30 caractères)"
+            maxLength={30}
+            required
+            disabled={loading}
+          />
+
           <label htmlFor="birthYear" className="age-gate-label">
             Année de naissance
           </label>
@@ -130,7 +152,7 @@ function AgeGateScreen({ socketUrl, deviceId, onVerified }) {
           <button
             className="button button-accent button-full"
             type="submit"
-            disabled={loading || !birthYear || !country}
+            disabled={loading || !birthYear || !country || !nickname.trim()}
           >
             {loading ? 'Vérification...' : 'Continuer'}
           </button>

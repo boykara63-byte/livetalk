@@ -41,6 +41,7 @@ function AdminLogin() {
     <div className="admin-login-screen">
       <div className="admin-login-card">
         <h1>Admin LiveTalk</h1>
+        <p className="admin-login-subtitle">Connexion sécurisée au panneau d'administration</p>
         <form className="admin-login-form" onSubmit={handleSubmit}>
           <label htmlFor="adminPassword" className="admin-login-label">
             Mot de passe

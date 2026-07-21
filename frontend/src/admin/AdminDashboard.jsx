@@ -38,6 +38,10 @@ function Card({ title, value }) {
   )
 }
 
+function Badge({ yes, children }) {
+  return <span className={`admin-badge ${yes ? 'admin-badge-yes' : 'admin-badge-no'}`}>{children}</span>
+}
+
 function BarChart({ data }) {
   if (!data || data.length === 0) return <p className="admin-empty">Aucune donnée</p>
   const max = Math.max(...data.map((d) => d.count), 1)
@@ -261,7 +265,7 @@ function AdminDashboard() {
                   <td>{report.reporter_device_id}</td>
                   <td>{report.reported_device_id}</td>
                   <td>{report.reason || '-'}</td>
-                  <td>{report.reported_is_banned ? 'Oui' : 'Non'}</td>
+                  <td><Badge yes={!report.reported_is_banned}>{report.reported_is_banned ? 'Oui' : 'Non'}</Badge></td>
                   <td>
                     {report.reported_is_banned ? (
                       <button
@@ -351,6 +355,7 @@ function AdminDashboard() {
             <thead>
               <tr>
                 <th>Device ID</th>
+                <th>Pseudo</th>
                 <th>Pays</th>
                 <th>Vérifié</th>
                 <th>Banni</th>
@@ -362,9 +367,10 @@ function AdminDashboard() {
               {users.map((user) => (
                 <tr key={user.id}>
                   <td className="admin-device-id">{user.device_id}</td>
+                  <td>{user.nickname || '-'}</td>
                   <td>{formatCountry(user.country)}</td>
-                  <td>{user.age_verified ? 'Oui' : 'Non'}</td>
-                  <td>{user.is_banned ? 'Oui' : 'Non'}</td>
+                  <td><Badge yes={user.age_verified}>{user.age_verified ? 'Oui' : 'Non'}</Badge></td>
+                  <td><Badge yes={!user.is_banned}>{user.is_banned ? 'Oui' : 'Non'}</Badge></td>
                   <td>{new Date(user.created_at).toLocaleString()}</td>
                   <td>
                     {user.is_banned ? (
@@ -387,7 +393,7 @@ function AdminDashboard() {
               ))}
               {users.length === 0 && (
                 <tr>
-                  <td colSpan="6" className="admin-empty">Aucun utilisateur</td>
+                  <td colSpan="7" className="admin-empty">Aucun utilisateur</td>
                 </tr>
               )}
             </tbody>
@@ -414,10 +420,16 @@ function AdminDashboard() {
     </div>
   )
 
+  const tabTitles = {
+    overview: 'Vue d\'ensemble',
+    reports: 'Signalements',
+    users: 'Utilisateurs',
+  }
+
   return (
     <div className="admin-dashboard">
       <aside className="admin-sidebar">
-        <h2>Admin LiveTalk</h2>
+        <h2>Admin <span>LiveTalk</span></h2>
         <nav className="admin-nav">
           <button
             className={activeTab === 'overview' ? 'active' : ''}
@@ -449,6 +461,9 @@ function AdminDashboard() {
         </button>
       </aside>
       <main className="admin-main">
+        <div className="admin-header">
+          <h1>{tabTitles[activeTab]}</h1>
+        </div>
         {activeTab === 'overview' && renderOverview()}
         {activeTab === 'reports' && renderReports()}
         {activeTab === 'users' && renderUsers()}

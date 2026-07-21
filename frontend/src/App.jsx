@@ -71,6 +71,7 @@ function App() {
   const [partnerId, setPartnerId] = useState(null)
   const [partnerDeviceId, setPartnerDeviceId] = useState(null)
   const [partnerCountry, setPartnerCountry] = useState(null)
+  const [partnerNickname, setPartnerNickname] = useState(null)
   const [messages, setMessages] = useState([])
   const [rawStream, setRawStream] = useState(null)
   const [localStream, setLocalStream] = useState(null)
@@ -345,11 +346,12 @@ function App() {
       }
     })
 
-    socket.on('matched', async ({ partnerId, partnerDeviceId, partnerCountry, initiator }) => {
-      console.log('[Socket] matched', { partnerId, partnerDeviceId, partnerCountry, initiator })
+    socket.on('matched', async ({ partnerId, partnerDeviceId, partnerCountry, partnerNickname, initiator }) => {
+      console.log('[Socket] matched', { partnerId, partnerDeviceId, partnerCountry, partnerNickname, initiator })
       setPartnerId(partnerId)
       setPartnerDeviceId(partnerDeviceId)
       setPartnerCountry(partnerCountry || null)
+      setPartnerNickname(partnerNickname || null)
       setStatus('Connecté à un partenaire')
 
       const pc = createPeerConnection()
@@ -370,6 +372,7 @@ function App() {
       setPartnerId(null)
       setPartnerDeviceId(null)
       setPartnerCountry(null)
+      setPartnerNickname(null)
       closePeerConnection()
       setStatus('Partenaire parti')
       setTimeout(() => {
@@ -468,6 +471,7 @@ function App() {
     setPartnerId(null)
     setPartnerDeviceId(null)
     setPartnerCountry(null)
+    setPartnerNickname(null)
   }
 
   const toggleMic = () => {
@@ -551,6 +555,7 @@ function App() {
                 onSendMessage={sendMessage}
                 onlineCount={onlineCount}
                 partnerCountry={partnerCountry}
+                partnerNickname={partnerNickname}
                 activeEffect={activeEffect}
                 effects={EFFECTS}
                 onSelectEffect={handleSelectEffect}

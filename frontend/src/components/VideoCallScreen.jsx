@@ -7,6 +7,7 @@ import {
   Flag,
   Send,
   ArrowRight,
+  LogOut,
 } from 'lucide-react'
 import Logo from './Logo'
 import { formatCountry } from '../data/countries'
@@ -23,6 +24,7 @@ function VideoCallScreen({
   toggleCamera,
   onReport,
   onNext,
+  onLeave,
   messages,
   onSendMessage,
   onlineCount,
@@ -74,9 +76,20 @@ function VideoCallScreen({
     <div className="video-call-screen">
       <header className="video-call-header">
         <Logo size="small" variant="dark" />
-        <div className="online-badge">
-          <span className="online-dot" aria-hidden="true" />
-          <span>{onlineCount} en ligne</span>
+        <div className="header-actions">
+          <div className="online-badge">
+            <span className="online-dot" aria-hidden="true" />
+            <span>{onlineCount} en ligne</span>
+          </div>
+          <button
+            type="button"
+            className="leave-button"
+            onClick={onLeave}
+            aria-label="Sortir"
+          >
+            <LogOut size={16} />
+            Sortir
+          </button>
         </div>
       </header>
 

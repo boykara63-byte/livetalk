@@ -322,15 +322,10 @@ function App() {
     setAgeVerified(true)
   }
 
-  const handleLogout = () => {
-    try {
-      localStorage.removeItem(AGE_VERIFIED_KEY)
-      localStorage.removeItem('livetalk-nickname')
-      localStorage.removeItem('livetalk-country')
-    } catch {}
-    socketRef.current?.disconnect()
+  const handleLeaveCall = () => {
+    console.log('[Socket] emit leave-queue')
+    socketRef.current?.emit('leave-queue')
     closePeerConnection()
-    setAgeVerified(false)
     setHasJoined(false)
     setPartnerId(null)
     setPartnerDeviceId(null)
@@ -426,7 +421,7 @@ function App() {
             )}
 
             {!hasJoined ? (
-              <StartScreen onStart={handleStart} disabled={!mediaReady} onlineCount={onlineCount} deviceId={deviceIdRef.current} onLogout={handleLogout} />
+              <StartScreen onStart={handleStart} disabled={!mediaReady} onlineCount={onlineCount} deviceId={deviceIdRef.current} />
             ) : (
               <VideoCallScreen
                 status={status}
@@ -440,6 +435,7 @@ function App() {
                 toggleCamera={toggleCamera}
                 onReport={handleReport}
                 onNext={handleNext}
+                onLeave={handleLeaveCall}
                 messages={messages}
                 onSendMessage={sendMessage}
                 onlineCount={onlineCount}

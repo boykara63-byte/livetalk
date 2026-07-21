@@ -1,10 +1,10 @@
 import { useState } from 'react'
-import { Video, Pencil, LogOut } from 'lucide-react'
+import { Video, Pencil } from 'lucide-react'
 import Logo from './Logo'
 
 const API_URL = import.meta.env.VITE_SOCKET_URL || 'https://livetalk-hlii.onrender.com'
 
-function StartScreen({ onStart, disabled, onlineCount, deviceId, onLogout }) {
+function StartScreen({ onStart, disabled, onlineCount, deviceId }) {
   const [showModal, setShowModal] = useState(false)
   const [nickname, setNickname] = useState(() => {
     try {
@@ -61,15 +61,6 @@ function StartScreen({ onStart, disabled, onlineCount, deviceId, onLogout }) {
           >
             <Pencil size={16} />
             Profil
-          </button>
-          <button
-            type="button"
-            className="logout-button"
-            onClick={onLogout}
-            aria-label="Se déconnecter"
-          >
-            <LogOut size={16} />
-            Déconnexion
           </button>
         </div>
 

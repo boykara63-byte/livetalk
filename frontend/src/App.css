@@ -217,11 +217,17 @@
   background: rgba(255, 255, 255, 0.28);
 }
 
-.logout-button {
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.leave-button {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 8px 14px;
+  padding: 6px 12px;
   border: none;
   border-radius: var(--radius-pill);
   background: rgba(220, 38, 38, 0.85);
@@ -230,11 +236,10 @@
   font-size: 13px;
   font-weight: 600;
   cursor: pointer;
-  backdrop-filter: blur(4px);
   transition: background 0.15s ease;
 }
 
-.logout-button:hover {
+.leave-button:hover {
   background: rgba(185, 28, 28, 0.95);
 }
 

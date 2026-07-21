@@ -193,6 +193,7 @@
   width: 100%;
   display: flex;
   justify-content: flex-end;
+  gap: 10px;
 }
 
 .profile-edit-button {
@@ -214,6 +215,27 @@
 
 .profile-edit-button:hover {
   background: rgba(255, 255, 255, 0.28);
+}
+
+.logout-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  border: none;
+  border-radius: var(--radius-pill);
+  background: rgba(220, 38, 38, 0.85);
+  color: var(--color-white);
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  backdrop-filter: blur(4px);
+  transition: background 0.15s ease;
+}
+
+.logout-button:hover {
+  background: rgba(185, 28, 28, 0.95);
 }
 
 .modal-overlay {

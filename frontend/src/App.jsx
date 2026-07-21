@@ -322,6 +322,24 @@ function App() {
     setAgeVerified(true)
   }
 
+  const handleLogout = () => {
+    try {
+      localStorage.removeItem(AGE_VERIFIED_KEY)
+      localStorage.removeItem('livetalk-nickname')
+      localStorage.removeItem('livetalk-country')
+    } catch {}
+    socketRef.current?.disconnect()
+    closePeerConnection()
+    setAgeVerified(false)
+    setHasJoined(false)
+    setPartnerId(null)
+    setPartnerDeviceId(null)
+    setPartnerCountry(null)
+    setPartnerNickname(null)
+    setMessages([])
+    setStatus('Déconnecté')
+  }
+
   const joinQueue = () => {
     closePeerConnection()
     console.log('[Socket] emit join-queue, deviceId:', deviceIdRef.current)
@@ -408,7 +426,7 @@ function App() {
             )}
 
             {!hasJoined ? (
-              <StartScreen onStart={handleStart} disabled={!mediaReady} onlineCount={onlineCount} deviceId={deviceIdRef.current} />
+              <StartScreen onStart={handleStart} disabled={!mediaReady} onlineCount={onlineCount} deviceId={deviceIdRef.current} onLogout={handleLogout} />
             ) : (
               <VideoCallScreen
                 status={status}

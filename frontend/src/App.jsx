@@ -72,7 +72,9 @@ function App() {
   const [isCameraOn, setIsCameraOn] = useState(true)
   const [ageVerified, setAgeVerified] = useState(() => {
     try {
-      return localStorage.getItem(AGE_VERIFIED_KEY) === 'true'
+      const verified = localStorage.getItem(AGE_VERIFIED_KEY) === 'true'
+      const nickname = localStorage.getItem('livetalk-nickname')
+      return verified && !!nickname
     } catch {
       return false
     }

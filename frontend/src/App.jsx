@@ -74,7 +74,8 @@ function App() {
     try {
       const verified = localStorage.getItem(AGE_VERIFIED_KEY) === 'true'
       const nickname = localStorage.getItem('livetalk-nickname')
-      return verified && !!nickname
+      const country = localStorage.getItem('livetalk-country')
+      return verified && !!nickname && country !== null
     } catch {
       return false
     }

@@ -27,6 +27,6 @@ export function getCountryByCode(code) {
 
 export function formatCountry(code) {
   const country = getCountryByCode(code)
-  if (!country) return 'Inconnu'
+  if (!country) return 'Non déterminé'
   return `${country.flag} ${country.name}`
 }

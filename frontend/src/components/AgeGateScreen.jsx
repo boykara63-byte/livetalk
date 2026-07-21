@@ -1,16 +1,6 @@
 import { useMemo, useState } from 'react'
 import Logo from './Logo'
-import { COUNTRIES } from '../data/countries'
-
-const WEST_AFRICAN_CODES = ['TG', 'CI', 'SN', 'BJ', 'BF', 'ML', 'NE', 'GN']
-
-const WEST_AFRICAN_COUNTRIES = COUNTRIES.filter((c) =>
-  WEST_AFRICAN_CODES.includes(c.code)
-)
-
-const OTHER_COUNTRIES = COUNTRIES.filter(
-  (c) => !WEST_AFRICAN_CODES.includes(c.code)
-)
+import { formatCountry } from '../data/countries'
 
 function AgeGateScreen({ socketUrl, deviceId, onVerified }) {
   const currentYear = new Date().getFullYear()
@@ -26,15 +16,15 @@ function AgeGateScreen({ socketUrl, deviceId, onVerified }) {
   }, [startYear, endYear])
 
   const [birthYear, setBirthYear] = useState('')
-  const [country, setCountry] = useState('')
   const [nickname, setNickname] = useState('')
+  const [detectedCountry, setDetectedCountry] = useState(null)
   const [error, setError] = useState(null)
   const [loading, setLoading] = useState(false)
 
   const handleSubmit = async (e) => {
     e.preventDefault()
     const trimmedNickname = nickname.trim().slice(0, 30)
-    if (!birthYear || !country) return
+    if (!birthYear) return
     if (!trimmedNickname) {
       setError('Choisis un pseudo pour continuer.')
       return
@@ -54,15 +44,19 @@ function AgeGateScreen({ socketUrl, deviceId, onVerified }) {
       const res = await fetch(`${socketUrl}/api/verify-age`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ deviceId, birthDate, country, nickname: trimmedNickname }),
+        body: JSON.stringify({ deviceId, birthDate, nickname: trimmedNickname }),
       })
       const data = await res.json()
       if (res.ok) {
+        const country = data.country || null
+        setDetectedCountry(country)
         try {
-          localStorage.setItem('livetalk-country', country)
+          localStorage.setItem('livetalk-country', country || '')
           localStorage.setItem('livetalk-nickname', trimmedNickname)
         } catch {}
-        onVerified()
+        setTimeout(() => {
+          onVerified()
+        }, 1500)
       } else {
         setError(data.error || 'Impossible de valider tes informations. R\u00e9essaie.')
       }
@@ -72,6 +66,8 @@ function AgeGateScreen({ socketUrl, deviceId, onVerified }) {
       setLoading(false)
     }
   }
+
+  const countryLabel = detectedCountry ? formatCountry(detectedCountry) : null
 
   return (
     <div className="age-gate-screen screen-gradient">
@@ -93,7 +89,7 @@ function AgeGateScreen({ socketUrl, deviceId, onVerified }) {
             placeholder="Ton pseudo (3-30 caractères)"
             maxLength={30}
             required
-            disabled={loading}
+            disabled={loading || detectedCountry !== null}
           />
 
           <label htmlFor="birthYear" className="age-gate-label">
@@ -105,7 +101,7 @@ function AgeGateScreen({ socketUrl, deviceId, onVerified }) {
             value={birthYear}
             onChange={(e) => setBirthYear(e.target.value)}
             required
-            disabled={loading}
+            disabled={loading || detectedCountry !== null}
           >
             <option value="" disabled>
               Sélectionne ton année
@@ -117,44 +113,20 @@ function AgeGateScreen({ socketUrl, deviceId, onVerified }) {
             ))}
           </select>
 
-          <label htmlFor="country" className="age-gate-label">
-            Pays de provenance
-          </label>
-          <select
-            id="country"
-            className="age-gate-select"
-            value={country}
-            onChange={(e) => setCountry(e.target.value)}
-            required
-            disabled={loading}
-          >
-            <option value="" disabled>
-              Sélectionne ton pays
-            </option>
-            <optgroup label="Afrique de l'Ouest">
-              {WEST_AFRICAN_COUNTRIES.map((c) => (
-                <option key={c.code} value={c.code}>
-                  {c.flag} {c.name}
-                </option>
-              ))}
-            </optgroup>
-            <optgroup label="Autres pays">
-              {OTHER_COUNTRIES.map((c) => (
-                <option key={c.code} value={c.code}>
-                  {c.flag} {c.name}
-                </option>
-              ))}
-            </optgroup>
-          </select>
+          {detectedCountry !== null && (
+            <p className="age-gate-country">
+              Pays détecté : {countryLabel || 'Non déterminé'}
+            </p>
+          )}
 
           {error && <p className="age-gate-error">{error}</p>}
 
           <button
             className="button button-accent button-full"
             type="submit"
-            disabled={loading || !birthYear || !country || !nickname.trim()}
+            disabled={loading || !birthYear || !nickname.trim() || detectedCountry !== null}
           >
-            {loading ? 'Vérification...' : 'Continuer'}
+            {loading ? 'Vérification...' : detectedCountry !== null ? 'Redirection...' : 'Continuer'}
           </button>
         </form>
 

@@ -407,7 +407,7 @@ function App() {
             )}
 
             {!hasJoined ? (
-              <StartScreen onStart={handleStart} disabled={!mediaReady} onlineCount={onlineCount} />
+              <StartScreen onStart={handleStart} disabled={!mediaReady} onlineCount={onlineCount} deviceId={deviceIdRef.current} />
             ) : (
               <VideoCallScreen
                 status={status}

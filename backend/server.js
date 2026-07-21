@@ -6,6 +6,7 @@ const cors = require("cors");
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
 const rateLimit = require("express-rate-limit");
+const geoip = require("geoip-lite");
 const { pool } = require("./db");
 
 const allowedOrigin = process.env.FRONTEND_URL || "*";
@@ -20,8 +21,17 @@ if (!JWT_SECRET) {
 }
 
 const app = express();
+app.set("trust proxy", true);
 app.use(cors({ origin: allowedOrigin }));
 app.use(express.json());
+
+function detectCountryFromIP(ip) {
+  if (!ip || ip === "127.0.0.1" || ip === "::1" || ip.startsWith("::ffff:127")) {
+    return null;
+  }
+  const lookup = geoip.lookup(ip);
+  return lookup?.country || null;
+}
 
 app.get("/health", (req, res) => {
   res.json({ status: "ok" });
@@ -181,7 +191,7 @@ function requireAdmin(req, res, next) {
 }
 
 app.post("/api/verify-age", async (req, res) => {
-  const { deviceId, birthDate, country, nickname } = req.body;
+  const { deviceId, birthDate, nickname } = req.body;
   if (!deviceId || !birthDate) {
     return res.status(400).json({ error: "L'identifiant et la date de naissance sont requis." });
   }
@@ -192,7 +202,7 @@ app.post("/api/verify-age", async (req, res) => {
   }
 
   const age = calculateAge(birth);
-
+  const detectedCountry = detectCountryFromIP(req.ip);
   const safeNickname = nickname && typeof nickname === "string" ? nickname.trim().slice(0, 30) : null;
 
   if (age < 18) {
@@ -201,7 +211,7 @@ app.post("/api/verify-age", async (req, res) => {
         `INSERT INTO users (device_id, birth_date, age_verified, country, nickname)
          VALUES ($1, $2, FALSE, $3, $4)
          ON CONFLICT (device_id) DO UPDATE SET birth_date = $2, age_verified = FALSE, country = COALESCE($3, users.country), nickname = COALESCE($4, users.nickname)`,
-        [deviceId, birthDate, country || null, safeNickname]
+        [deviceId, birthDate, detectedCountry, safeNickname]
       );
     } catch (err) {
       console.error("verify-age insert error:", err.message);
@@ -215,11 +225,33 @@ app.post("/api/verify-age", async (req, res) => {
       `INSERT INTO users (device_id, birth_date, age_verified, country, nickname)
        VALUES ($1, $2, TRUE, $3, $4)
        ON CONFLICT (device_id) DO UPDATE SET birth_date = $2, age_verified = TRUE, country = COALESCE($3, users.country), nickname = COALESCE($4, users.nickname)`,
-      [deviceId, birthDate, country || null, safeNickname]
+      [deviceId, birthDate, detectedCountry, safeNickname]
     );
-    return res.json({ success: true });
+    return res.json({ success: true, country: detectedCountry });
   } catch (err) {
     console.error("verify-age error:", err.message);
+    return res.status(500).json({ error: "Service temporairement indisponible. R\u00e9essaie dans quelques instants." });
+  }
+});
+
+app.put("/api/profile", async (req, res) => {
+  const { deviceId, displayName } = req.body;
+  if (!deviceId) {
+    return res.status(400).json({ error: "Identifiant requis." });
+  }
+  const trimmed = typeof displayName === "string" ? displayName.trim().slice(0, 30) : "";
+  if (!trimmed) {
+    return res.status(400).json({ error: "Pseudo requis." });
+  }
+
+  try {
+    await pool.query(
+      `UPDATE users SET nickname = $2 WHERE device_id = $1`,
+      [deviceId, trimmed]
+    );
+    return res.json({ success: true, nickname: trimmed });
+  } catch (err) {
+    console.error("profile update error:", err.message);
     return res.status(500).json({ error: "Service temporairement indisponible. R\u00e9essaie dans quelques instants." });
   }
 });

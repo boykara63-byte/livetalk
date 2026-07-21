@@ -24,6 +24,10 @@ L'ordre de déploiement complet est décrit dans [`DEPLOYMENT.md`](DEPLOYMENT.md
 
 La connexion SSL est activée automatiquement dans `backend/db.js` si la connection string contient `neon.tech` ou si `NODE_ENV=production`.
 
+## Détection du pays par IP
+
+Le pays de l'utilisateur est détecté automatiquement côté serveur avec `geoip-lite`, à partir de l'adresse IP du visiteur. Cela remplace la sélection manuelle précédente. En environnement local, ou si l'utilisateur utilise un VPN/proxy, la détection peut échouer et le pays sera enregistré comme non déterminé. C'est une aide pratique, pas une garantie absolue.
+
 ## Backend (Render)
 
 Voir [`backend/README.md`](backend/README.md) pour la configuration détaillée.

@@ -1,10 +1,12 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, Suspense, lazy } from 'react'
 import { io } from 'socket.io-client'
-import AgeGateScreen from './components/AgeGateScreen'
-import StartScreen from './components/StartScreen'
-import VideoCallScreen from './components/VideoCallScreen'
+import LoadingScreen from './components/LoadingScreen'
 import './theme.css'
 import './App.css'
+
+const AgeGateScreen = lazy(() => import('./components/AgeGateScreen'))
+const StartScreen = lazy(() => import('./components/StartScreen'))
+const VideoCallScreen = lazy(() => import('./components/VideoCallScreen'))
 
 const DEVICE_ID_KEY = 'livetalk-device-id'
 const AGE_VERIFIED_KEY = 'livetalk-age-verified'
@@ -409,42 +411,44 @@ function App() {
   return (
     <div className="app">
       <main className="app-main">
-        {!ageVerified ? (
-          <AgeGateScreen socketUrl={socketUrl} deviceId={deviceIdRef.current} onVerified={handleAgeVerified} />
-        ) : (
-          <>
-            {!mediaReady && !mediaError && (
-              <p className="media-loading">Activation caméra/micro...</p>
-            )}
-            {mediaError && (
-              <p className="media-error">Erreur caméra/micro : {mediaError}</p>
-            )}
+        <Suspense fallback={<LoadingScreen />}>
+          {!ageVerified ? (
+            <AgeGateScreen socketUrl={socketUrl} deviceId={deviceIdRef.current} onVerified={handleAgeVerified} />
+          ) : (
+            <>
+              {!mediaReady && !mediaError && (
+                <p className="media-loading">Activation caméra/micro...</p>
+              )}
+              {mediaError && (
+                <p className="media-error">Erreur caméra/micro : {mediaError}</p>
+              )}
 
-            {!hasJoined ? (
-              <StartScreen onStart={handleStart} disabled={!mediaReady} onlineCount={onlineCount} deviceId={deviceIdRef.current} />
-            ) : (
-              <VideoCallScreen
-                status={status}
-                partnerId={partnerId}
-                localVideoRef={localVideoRef}
-                remoteVideoRef={remoteVideoRef}
-                localStream={localStream}
-                isMicOn={isMicOn}
-                isCameraOn={isCameraOn}
-                toggleMic={toggleMic}
-                toggleCamera={toggleCamera}
-                onReport={handleReport}
-                onNext={handleNext}
-                onLeave={handleLeaveCall}
-                messages={messages}
-                onSendMessage={sendMessage}
-                onlineCount={onlineCount}
-                partnerCountry={partnerCountry}
-                partnerNickname={partnerNickname}
-              />
-            )}
-          </>
-        )}
+              {!hasJoined ? (
+                <StartScreen onStart={handleStart} disabled={!mediaReady} onlineCount={onlineCount} deviceId={deviceIdRef.current} />
+              ) : (
+                <VideoCallScreen
+                  status={status}
+                  partnerId={partnerId}
+                  localVideoRef={localVideoRef}
+                  remoteVideoRef={remoteVideoRef}
+                  localStream={localStream}
+                  isMicOn={isMicOn}
+                  isCameraOn={isCameraOn}
+                  toggleMic={toggleMic}
+                  toggleCamera={toggleCamera}
+                  onReport={handleReport}
+                  onNext={handleNext}
+                  onLeave={handleLeaveCall}
+                  messages={messages}
+                  onSendMessage={sendMessage}
+                  onlineCount={onlineCount}
+                  partnerCountry={partnerCountry}
+                  partnerNickname={partnerNickname}
+                />
+              )}
+            </>
+          )}
+        </Suspense>
       </main>
     </div>
   )
